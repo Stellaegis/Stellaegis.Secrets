@@ -4,8 +4,8 @@ namespace Stellaegis.Secrets.Client;
 
 /// <summary>
 /// HTTP adapter for the Vault API — implements <see cref="IMutableSecretsProvider"/> by
-/// proxying calls to a remote <c>Stellaegis.Platform.Vault</c> host. Used in multi-host
-/// ("Full") topologies where the vault is not hosted in-process.
+/// proxying calls to a remote host that exposes the vault over HTTP. Used when the vault is not
+/// hosted in-process.
 /// </summary>
 internal sealed class HttpSecretsProvider(HttpClient http) : IMutableSecretsProvider
 {

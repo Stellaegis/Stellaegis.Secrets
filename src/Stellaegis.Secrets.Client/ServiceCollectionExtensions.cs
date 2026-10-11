@@ -22,8 +22,8 @@ public static class ServiceCollectionExtensions
     /// appsettings.json:
     /// <code>
     /// "Stellaegis": {
-    ///   "ExternalServices": {
-    ///     "Vault": { "BaseUrl": "https://vault.example.com/api/vault/" }
+    ///   "Secrets": {
+    ///     "Client": { "BaseUrl": "https://vault.example.com/api/vault/" }
     ///   }
     /// }
     /// </code>
