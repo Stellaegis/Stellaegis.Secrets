@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Stellaegis.Http;
 
 namespace Stellaegis.Secrets.Client;
 
@@ -12,57 +11,45 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Registers <see cref="ISecretsProvider"/>/<see cref="IMutableSecretsProvider"/> backed by
-    /// an HTTP client targeting the Vault API, authenticated via <see cref="M2MTokenProvider"/>.
-    /// Requires <see cref="M2MTokenProvider"/> to be registered (call <c>AddStellaegisM2M()</c> first).
+    /// an HTTP client targeting the Vault API.
     /// </summary>
     /// <remarks>
-    /// Use this in multi-host ("Full") topologies where the vault is hosted by a standalone
-    /// <c>Stellaegis.Platform.Vault</c>. In Lite/DevHost-unified topologies, register
-    /// <c>DatabaseSecretsProvider</c> (or <c>InMemorySecretsProvider</c>) directly instead —
-    /// it already implements the same port in-process, no adapter needed.
+    /// The client sends requests as they are: authenticating them is the caller's concern. Add a
+    /// <see cref="System.Net.Http.DelegatingHandler"/> to the returned builder to attach a token, an
+    /// API key, or anything else the Vault API host requires.
     /// </remarks>
     /// <example>
     /// appsettings.json:
     /// <code>
     /// "Stellaegis": {
-    ///   "M2M": { "TokenEndpoint": "...", "ClientId": "...", "ClientSecret": "..." },
     ///   "ExternalServices": {
-    ///     "Vault": { "BaseUrl": "https://vault.api.stellaegis.local/api/vault/" }
+    ///     "Vault": { "BaseUrl": "https://vault.example.com/api/vault/" }
     ///   }
     /// }
     /// </code>
     /// Program.cs:
     /// <code>
-    /// builder.Services.AddStellaegisM2M(builder.Configuration);
-    /// builder.Services.AddStellaegisHttpVaultClient(builder.Configuration);
+    /// builder.Services.AddStellaegisHttpVaultClient(builder.Configuration)
+    ///     .AddHttpMessageHandler&lt;MyTokenHandler&gt;();
     /// </code>
     /// </example>
-    public static IServiceCollection AddStellaegisHttpVaultClient(
+    /// <returns>The builder of the underlying HTTP client, to add handlers to.</returns>
+    public static IHttpClientBuilder AddStellaegisHttpVaultClient(
         this IServiceCollection services,
         IConfiguration configuration,
         string sectionName = VaultClientOptions.SectionName)
     {
-        if (!services.Any(d => d.ServiceType == typeof(M2MTokenProvider)))
-            throw new InvalidOperationException(
-                "M2MTokenProvider is not registered. Call AddStellaegisM2M() before AddStellaegisHttpVaultClient().");
-
         services.Configure<VaultClientOptions>(configuration.GetSection(sectionName));
 
-        services.AddHttpClient<IMutableSecretsProvider, HttpSecretsProvider>((sp, http) =>
+        var builder = services.AddHttpClient<IMutableSecretsProvider, HttpSecretsProvider>((sp, http) =>
         {
             var opts = sp.GetRequiredService<IOptions<VaultClientOptions>>().Value;
             http.BaseAddress = new Uri(opts.BaseUrl.TrimEnd('/') + "/");
             http.Timeout     = opts.Timeout;
-        })
-        .AddHttpMessageHandler(sp =>
-        {
-            var opts     = sp.GetRequiredService<IOptions<VaultClientOptions>>().Value;
-            var provider = sp.GetRequiredService<M2MTokenProvider>();
-            return new M2MTokenHandler(provider, opts.Scope);
         });
 
         services.AddTransient<ISecretsProvider>(sp => sp.GetRequiredService<IMutableSecretsProvider>());
 
-        return services;
+        return builder;
     }
 }
