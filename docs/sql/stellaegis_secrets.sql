@@ -1,14 +1,12 @@
 -- ============================================================================
--- Stellaegis Secrets — Database schema (vault)
+-- Stellaegis Secrets — Database schema (vault), for DatabaseSecretsProvider
 -- ============================================================================
--- Database: stellaegis_secrets
--- Schema:   vault
--- No cross-database joins.
+-- Schema:   vault, in whichever database the provider's connection string names.
 -- All constraints explicitly named.
 --
 -- Prerequisite: pgcrypto extension (symmetric encryption via pgp_sym_encrypt).
--- The passphrase is supplied by the STELLAEGIS_VAULT_PASSPHRASE environment variable.
--- Never store the passphrase in the database or in source code.
+-- The passphrases come from DatabaseSecretsOptions (Stellaegis:Secrets:Keys:{1|2} by default).
+-- Never store a passphrase in the database or in source code.
 -- ============================================================================
 
 create schema if not exists vault;
@@ -21,8 +19,9 @@ create extension if not exists pgcrypto;
 -- Encrypted storage of application secrets (connection strings, API keys,
 -- OIDC secrets, etc.) as JSON encrypted via pgp_sym_encrypt.
 --
--- Key (path): dotted hierarchical identifier (e.g. tenantDB.primary.postgresql.acme).
--- Value:      raw encrypted JSON — usually { "connectionString": "..." }.
+-- Key (path): the text form of a SecretPath — segments of [A-Za-z0-9_-] joined by '.'
+--             (e.g. tenantDB.primary.postgresql.acme). The module gives segments no meaning.
+-- Value:      the encrypted secret, any text — often a JSON document.
 --
 -- Read:  SELECT pgp_sym_decrypt(secret_json, @passphrase)::text FROM vault.secrets WHERE path = @path
 -- Write: INSERT ... ON CONFLICT (path) DO UPDATE SET secret_json = pgp_sym_encrypt(@value, @passphrase)
@@ -39,12 +38,12 @@ create table vault.secrets (
   constraint ck_vault_secrets_key_slot check (key_slot in (1, 2))
 );
 
-comment on table  vault.secrets             is 'Secrets encrypted via pgp_sym_encrypt (pgcrypto). One secret = one dotted path.';
-comment on column vault.secrets.path        is 'Hierarchical key: tier.name.provider.tenant_slug (e.g. tenantDB.primary.postgresql.acme).';
-comment on column vault.secrets.secret_json is 'Encrypted JSON holding the raw secret. Never decrypt it in a view or a log.';
+comment on table  vault.secrets             is 'Secrets encrypted via pgp_sym_encrypt (pgcrypto). One secret = one path.';
+comment on column vault.secrets.path        is 'Text form of a SecretPath: segments joined by a dot (e.g. tenantDB.primary.postgresql.acme).';
+comment on column vault.secrets.secret_json is 'The encrypted secret. Never decrypt it in a view or a log.';
 comment on column vault.secrets.key_slot    is 'Active encryption slot (1 or 2, rotation modulo 2). Tells which passphrase to use for decryption.';
 
--- Index on the path prefix for "all secrets of a tenant" style queries.
+-- Index on the path prefix, for queries on all the paths under a given prefix.
 create index ix_vault_secrets_path_prefix
   on vault.secrets (path text_pattern_ops);
 
