@@ -11,9 +11,8 @@ namespace Stellaegis.Secrets.Scaleway;
 /// Uses the <c>secrets-by-path</c> endpoint to access secrets by folder path and name.
 /// </summary>
 /// <remarks>
-/// Vault paths use "/" as separator. The internal dotted path (e.g. "tenantDB.postgresql.dev")
-/// is converted to "tenantDB/postgresql/dev" by the tenant connection factory.
-/// The last segment becomes the secret name, everything before is the secret path.
+/// The last segment of a <see cref="SecretPath"/> is the secret's name, the segments before it its
+/// folder — see <see cref="ScalewaySecretNameFormat"/>.
 /// </remarks>
 public sealed partial class ScalewaySecretsProvider : ISecretsProvider
 {
@@ -44,30 +43,15 @@ public sealed partial class ScalewaySecretsProvider : ISecretsProvider
         _options = opts;
     }
 
-    /// <inheritdoc />
-    /// <remarks>Uses "/" — Scaleway Secret Manager organizes secrets in folder paths.</remarks>
-    public string Separator => "/";
+    /// <summary>The native names of this provider: folders, then the secret's name.</summary>
+    public static ISecretNameFormat NameFormat => ScalewaySecretNameFormat.Instance;
 
     /// <inheritdoc />
-    public async Task<string> GetSecretAsync(string path, CancellationToken cancellationToken = default)
+    public async Task<string> GetSecretAsync(SecretPath path, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(path);
 
-        // Split vault path into folder (secret_path) and leaf (secret_name).
-        // "tenantDB/postgresql/dev" → path="/tenantDB/postgresql", name="dev"
-        var lastSep = path.LastIndexOf('/');
-        string secretPath, secretName;
-        if (lastSep >= 0)
-        {
-            secretPath = path[..lastSep];
-            secretName = path[(lastSep + 1)..];
-            if (string.IsNullOrEmpty(secretPath)) secretPath = "/";
-        }
-        else
-        {
-            secretPath = "/";
-            secretName = path;
-        }
+        var (secretPath, secretName) = ScalewaySecretNameFormat.FolderAndName(path);
 
         var url = $"{_options.BaseUrl}/secret-manager/v1beta1/regions/{Uri.EscapeDataString(_options.Region)}" +
                   $"/secrets-by-path/versions/latest/access" +
@@ -101,16 +85,16 @@ public sealed partial class ScalewaySecretsProvider : ISecretsProvider
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyDictionary<string, string>> GetSecretsAsync(
-        IEnumerable<string> paths,
+    public async Task<IReadOnlyDictionary<SecretPath, string>> GetSecretsAsync(
+        IEnumerable<SecretPath> paths,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(paths);
 
-        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        var result = new Dictionary<SecretPath, string>();
         foreach (var path in paths)
         {
-            if (string.IsNullOrWhiteSpace(path)) continue;
+            if (path is null) continue;
             try
             {
                 result[path] = await GetSecretAsync(path, cancellationToken).ConfigureAwait(false);

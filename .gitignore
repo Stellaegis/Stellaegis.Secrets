@@ -39,6 +39,8 @@ desktop.ini
 _local/
 
 # ── Build output ───────────────────────────────────────────────────────────────
-# Written by every `dotnet build`, next to each project. Anchored to the projects under src/.
+# Written by every `dotnet build`, next to each project. Anchored to the projects under src/ and tests/.
 /src/*/bin/
 /src/*/obj/
+/tests/*/bin/
+/tests/*/obj/

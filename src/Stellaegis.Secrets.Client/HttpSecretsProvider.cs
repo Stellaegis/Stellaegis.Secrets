@@ -7,14 +7,17 @@ namespace Stellaegis.Secrets.Client;
 /// proxying calls to a remote host that exposes the vault over HTTP. Used when the vault is not
 /// hosted in-process.
 /// </summary>
+/// <remarks>
+/// Paths travel in their text form; the provider behind the remote host translates them into its
+/// own native names.
+/// </remarks>
 internal sealed class HttpSecretsProvider(HttpClient http) : IMutableSecretsProvider
 {
     /// <inheritdoc />
-    public string Separator => ".";
-
-    /// <inheritdoc />
-    public async Task<string> GetSecretAsync(string path, CancellationToken cancellationToken = default)
+    public async Task<string> GetSecretAsync(SecretPath path, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(path);
+
         var secrets = await GetSecretsAsync([path], cancellationToken);
 
         if (!secrets.TryGetValue(path, out var value))
@@ -24,29 +27,31 @@ internal sealed class HttpSecretsProvider(HttpClient http) : IMutableSecretsProv
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyDictionary<string, string>> GetSecretsAsync(
-        IEnumerable<string> paths,
+    public async Task<IReadOnlyDictionary<SecretPath, string>> GetSecretsAsync(
+        IEnumerable<SecretPath> paths,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(paths);
+
         var response = await http.PostAsJsonAsync(
             "secrets/get",
-            new GetSecretsRequest([.. paths]),
+            new GetSecretsRequest([.. paths.Where(p => p is not null)]),
             cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var secrets = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>(cancellationToken: cancellationToken);
-        return secrets ?? new Dictionary<string, string>();
+        var secrets = await response.Content.ReadFromJsonAsync<Dictionary<SecretPath, string>>(cancellationToken: cancellationToken);
+        return secrets ?? [];
     }
 
     /// <inheritdoc />
-    public async Task SetSecretAsync(string path, string value, CancellationToken ct = default)
+    public async Task SetSecretAsync(SecretPath path, string value, CancellationToken ct = default)
     {
         var response = await http.PostAsJsonAsync("secrets/set", new SetSecretRequest(path, value), ct);
         response.EnsureSuccessStatusCode();
     }
 
     /// <inheritdoc />
-    public async Task DeleteSecretAsync(string path, CancellationToken ct = default)
+    public async Task DeleteSecretAsync(SecretPath path, CancellationToken ct = default)
     {
         var response = await http.PostAsJsonAsync("secrets/delete", new DeleteSecretRequest(path), ct);
         response.EnsureSuccessStatusCode();

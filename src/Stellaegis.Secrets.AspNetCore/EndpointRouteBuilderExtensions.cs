@@ -78,7 +78,7 @@ public static class EndpointRouteBuilderExtensions
                 return Results.Ok(secrets);
             })
             .WithName("GetVaultSecrets")
-            .Produces<IReadOnlyDictionary<string, string>>(StatusCodes.Status200OK);
+            .Produces<IReadOnlyDictionary<SecretPath, string>>(StatusCodes.Status200OK);
 
         group.MapPost("/set", async (
                 ISecretsProvider provider,

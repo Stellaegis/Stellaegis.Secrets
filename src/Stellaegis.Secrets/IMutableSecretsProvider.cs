@@ -7,12 +7,12 @@ namespace Stellaegis.Secrets;
 public interface IMutableSecretsProvider : ISecretsProvider
 {
     /// <summary>
-    /// Creates or replaces a secret at the specified vault path.
+    /// Creates or replaces the secret at <paramref name="path"/>.
     /// </summary>
-    Task SetSecretAsync(string path, string value, CancellationToken ct = default);
+    Task SetSecretAsync(SecretPath path, string value, CancellationToken ct = default);
 
     /// <summary>
-    /// Removes a secret at the specified vault path. No-op if the path does not exist.
+    /// Removes the secret at <paramref name="path"/>. No-op if no secret exists there.
     /// </summary>
-    Task DeleteSecretAsync(string path, CancellationToken ct = default);
+    Task DeleteSecretAsync(SecretPath path, CancellationToken ct = default);
 }

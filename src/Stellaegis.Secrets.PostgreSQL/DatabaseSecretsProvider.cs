@@ -34,13 +34,13 @@ public sealed class DatabaseSecretsProvider : IMutableSecretsProvider
         _connectionString = _opts.ConnectionString;
     }
 
-    /// <inheritdoc />
-    public string Separator => ".";
+    /// <summary>The native names of this provider: the text form of the path, in the <c>path</c> column.</summary>
+    public static ISecretNameFormat NameFormat => DottedSecretNameFormat.Instance;
 
     /// <inheritdoc />
-    public async Task<string> GetSecretAsync(string path, CancellationToken cancellationToken = default)
+    public async Task<string> GetSecretAsync(SecretPath path, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(path);
 
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -55,7 +55,7 @@ public sealed class DatabaseSecretsProvider : IMutableSecretsProvider
                 FROM {Table}
                 WHERE path = @path
                 """,
-                new { path, pass1 = _opts.GetPassphrase(1), pass2 = _opts.GetPassphrase(2) },
+                new { path = NameFormat.Join(path), pass1 = _opts.GetPassphrase(1), pass2 = _opts.GetPassphrase(2) },
                 cancellationToken: cancellationToken));
 
         if (result is null)
@@ -69,15 +69,22 @@ public sealed class DatabaseSecretsProvider : IMutableSecretsProvider
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyDictionary<string, string>> GetSecretsAsync(
-        IEnumerable<string> paths,
+    public async Task<IReadOnlyDictionary<SecretPath, string>> GetSecretsAsync(
+        IEnumerable<SecretPath> paths,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(paths);
 
-        var pathList = paths.Where(p => !string.IsNullOrWhiteSpace(p)).ToArray();
-        if (pathList.Length == 0)
-            return new Dictionary<string, string>();
+        // Native name → requested path: rows map back to what was asked, never parsed from the table.
+        var requested = new Dictionary<string, SecretPath>(StringComparer.Ordinal);
+        foreach (var path in paths)
+        {
+            if (path is not null)
+                requested[NameFormat.Join(path)] = path;
+        }
+
+        if (requested.Count == 0)
+            return new Dictionary<SecretPath, string>();
 
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -92,16 +99,16 @@ public sealed class DatabaseSecretsProvider : IMutableSecretsProvider
                 FROM {Table}
                 WHERE path = ANY(@paths)
                 """,
-                new { paths = pathList, pass1 = _opts.GetPassphrase(1), pass2 = _opts.GetPassphrase(2) },
+                new { paths = requested.Keys.ToArray(), pass1 = _opts.GetPassphrase(1), pass2 = _opts.GetPassphrase(2) },
                 cancellationToken: cancellationToken));
 
-        return rows.ToDictionary(r => r.path, r => r.secret, StringComparer.Ordinal);
+        return rows.ToDictionary(r => requested[r.path], r => r.secret);
     }
 
     /// <inheritdoc />
-    public async Task SetSecretAsync(string path, string value, CancellationToken ct = default)
+    public async Task SetSecretAsync(SecretPath path, string value, CancellationToken ct = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(path);
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
 
         var slot = _opts.ActiveKeySlot;
@@ -119,23 +126,23 @@ public sealed class DatabaseSecretsProvider : IMutableSecretsProvider
                   key_slot    = @slot,
                   updated_at  = now()
             """,
-            new { path, value, passphrase, slot },
+            new { path = NameFormat.Join(path), value, passphrase, slot },
             cancellationToken: ct));
 
         _logger.LogDebug("Set secret in database for path '{Path}' (slot {Slot})", path, slot);
     }
 
     /// <inheritdoc />
-    public async Task DeleteSecretAsync(string path, CancellationToken ct = default)
+    public async Task DeleteSecretAsync(SecretPath path, CancellationToken ct = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(path);
 
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(ct).ConfigureAwait(false);
 
         await connection.ExecuteAsync(new CommandDefinition(
             $"DELETE FROM {Table} WHERE path = @path",
-            new { path },
+            new { path = NameFormat.Join(path) },
             cancellationToken: ct));
 
         _logger.LogDebug("Deleted secret from database for path '{Path}'", path);

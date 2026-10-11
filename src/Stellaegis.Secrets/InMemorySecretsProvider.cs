@@ -6,11 +6,12 @@ namespace Stellaegis.Secrets;
 /// In-memory implementation of <see cref="ISecretsProvider"/> intended for development and tests only.
 /// </summary>
 /// <remarks>
-/// This provider stores secrets in memory and is not suitable for production.
+/// This provider stores secrets in memory and is not suitable for production. It keeps paths as they
+/// are, with no native name to translate to.
 /// </remarks>
 public sealed class InMemorySecretsProvider : ISecretsProvider
 {
-    private readonly Dictionary<string, string> _secrets = new(StringComparer.Ordinal);
+    private readonly Dictionary<SecretPath, string> _secrets = [];
     private readonly ILogger<InMemorySecretsProvider> _logger;
 
     /// <summary>
@@ -22,13 +23,10 @@ public sealed class InMemorySecretsProvider : ISecretsProvider
         _logger.LogWarning("Using InMemorySecretsProvider (development/testing only).");
     }
 
-    /// <inheritdoc />
-    public string Separator => "/";
-
     /// <summary>
     /// Adds or overwrites a secret in the in-memory store.
     /// </summary>
-    public void AddSecret(string path, string value)
+    public void AddSecret(SecretPath path, string value)
     {
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(value);
@@ -38,7 +36,7 @@ public sealed class InMemorySecretsProvider : ISecretsProvider
     }
 
     /// <inheritdoc />
-    public Task<string> GetSecretAsync(string path, CancellationToken cancellationToken = default)
+    public Task<string> GetSecretAsync(SecretPath path, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(path);
 
@@ -53,13 +51,13 @@ public sealed class InMemorySecretsProvider : ISecretsProvider
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyDictionary<string, string>> GetSecretsAsync(
-        IEnumerable<string> paths,
+    public Task<IReadOnlyDictionary<SecretPath, string>> GetSecretsAsync(
+        IEnumerable<SecretPath> paths,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(paths);
 
-        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        var result = new Dictionary<SecretPath, string>();
 
         foreach (var path in paths)
         {
@@ -75,6 +73,6 @@ public sealed class InMemorySecretsProvider : ISecretsProvider
             }
         }
 
-        return Task.FromResult((IReadOnlyDictionary<string, string>)result);
+        return Task.FromResult((IReadOnlyDictionary<SecretPath, string>)result);
     }
 }
