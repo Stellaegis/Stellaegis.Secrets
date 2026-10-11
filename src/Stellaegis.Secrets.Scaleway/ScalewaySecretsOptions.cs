@@ -5,6 +5,9 @@ namespace Stellaegis.Secrets.Scaleway;
 /// </summary>
 public sealed class ScalewaySecretsOptions
 {
+    /// <summary>Default configuration section: <c>Stellaegis:Secrets:Scaleway</c>.</summary>
+    public const string SectionName = "Stellaegis:Secrets:Scaleway";
+
     /// <summary>
     /// Scaleway region (e.g. "fr-par", "nl-ams", "pl-waw").
     /// </summary>

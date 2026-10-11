@@ -101,7 +101,9 @@ pgcrypto's `pgp_sym_encrypt` and stored in the table `vault.secrets`. The provid
 You operate the database, and you keep the passphrases outside it. See the next section.
 
 **Scaleway** (`ScalewaySecretsProvider`). Reads from Scaleway Secret Manager, a managed vault. The
-provider is read-only: secrets are created with Scaleway's tools.
+provider is read-only: secrets are created with Scaleway's tools. Register it with
+`AddScalewaySecretsProvider(builder.Configuration)`; it reads `ProjectId`, `ApiToken` and `Region`
+from the section `Stellaegis:Secrets:Scaleway`.
 
 **Remote** (`Stellaegis.Secrets.Client` and `Stellaegis.Secrets.AspNetCore`). One process hosts a
 provider and exposes it over HTTP; other processes use it through the client, which implements the
@@ -115,23 +117,25 @@ database of your choice. The script requires the pgcrypto extension and creates 
 [`docs/sql/reset-vault.sql`](https://github.com/Stellaegis/Stellaegis.Secrets/blob/main/docs/sql/reset-vault.sql) deletes every secret, for development only.
 
 ```csharp
-builder.Services.AddDatabaseSecretsProvider(options =>
-{
-    options.ConnectionString = builder.Configuration.GetConnectionString("Vault")!;
-    builder.Configuration.GetSection("Stellaegis:Secrets").Bind(options);
-});
+builder.Services.AddDatabaseSecretsProvider(builder.Configuration);
 ```
 
 ```json
 {
   "Stellaegis": {
     "Secrets": {
+      "ConnectionString": "Host=localhost;Database=vault;...",
       "ActiveKeySlot": 1,
       "Keys": { "1": "set from an environment variable, never committed" }
     }
   }
 }
 ```
+
+The options are read from the section `Stellaegis:Secrets`; pass `sectionName` to read another one.
+To set an option from code instead — a connection string kept elsewhere, for instance — follow the
+registration with `services.PostConfigure<DatabaseSecretsOptions>(o => ...)`. The Scaleway provider
+and the HTTP client follow the same pattern.
 
 ### Key slots
 

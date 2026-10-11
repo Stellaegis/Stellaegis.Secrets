@@ -9,6 +9,7 @@ namespace Stellaegis.Secrets.PostgreSQL;
 /// <para>
 /// Configuration (rotation-ready):
 /// <code>
+/// Stellaegis:Secrets:ConnectionString = Host=...;Database=...
 /// Stellaegis:Secrets:ActiveKeySlot = 1
 /// Stellaegis:Secrets:Keys:1        = passphrase-for-slot-1
 /// Stellaegis:Secrets:Keys:2        = passphrase-for-slot-2  (empty until first rotation)
@@ -23,6 +24,9 @@ namespace Stellaegis.Secrets.PostgreSQL;
 /// </remarks>
 public sealed class DatabaseSecretsOptions
 {
+    /// <summary>Default configuration section: <c>Stellaegis:Secrets</c>.</summary>
+    public const string SectionName = "Stellaegis:Secrets";
+
     /// <summary>Connection string to the PostgreSQL database hosting the vault table.</summary>
     public string ConnectionString { get; set; } = "";
 
