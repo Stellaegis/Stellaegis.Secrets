@@ -30,7 +30,7 @@ namespace Stellaegis.Secrets.AspNetCore;
 /// </remarks>
 /// <example>
 /// <code>
-/// builder.Services.AddDatabaseSecretsProvider(opts => { ... });
+/// builder.Services.AddDatabaseSecretsProvider(builder.Configuration);
 /// builder.Services.AddAuthentication(...);
 /// builder.Services.AddAuthorization(o => o.AddPolicy("vault", p => ...));
 ///

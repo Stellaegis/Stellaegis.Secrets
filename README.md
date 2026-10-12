@@ -156,7 +156,7 @@ The endpoints return secret values in clear, so their access is always declared 
 the authorization policy that protects them:
 
 ```csharp
-builder.Services.AddDatabaseSecretsProvider(options => { /* ... */ });
+builder.Services.AddDatabaseSecretsProvider(builder.Configuration);
 builder.Services.AddAuthentication(/* your scheme */);
 builder.Services.AddAuthorization(o => o.AddPolicy("vault", p => p.RequireAuthenticatedUser()));
 
