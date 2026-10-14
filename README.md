@@ -63,7 +63,7 @@ The library gives no meaning to segments. One grammar has proved useful, and you
 another:
 
 ```text
-{usage}.{name}.{provider}.{holder}      e.g.  tenantDB.primary.postgresql.acme
+{usage}.{name}.{provider}.{compartment}      e.g.  tenantDB.primary.postgresql.acme
 ```
 
 It comes from asking the usual questions about a secret — what it is for, which instance, which
@@ -71,7 +71,7 @@ technology, and who it belongs to — so that none is forgotten. Its benefit is 
 this way map directly to the folders of a hierarchical vault.
 
 Its drawback appears with flat vaults. Azure Key Vault, for instance, joins segments with `-`, so a
-holder whose name contains `-` cannot be represented there unambiguously.
+compartment whose name contains `-` cannot be represented there unambiguously.
 
 ## Choosing a provider
 

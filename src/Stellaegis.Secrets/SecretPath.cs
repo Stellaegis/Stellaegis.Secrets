@@ -13,7 +13,7 @@ namespace Stellaegis.Secrets;
 /// another. Callers never handle a separator.
 /// </para>
 /// <para>
-/// The module gives segments no meaning. A grammar such as <c>{usage}.{name}.{provider}.{holder}</c>
+/// The module gives segments no meaning. A grammar such as <c>{usage}.{name}.{provider}.{compartment}</c>
 /// (e.g. <c>tenantDB.primary.postgresql.acme</c>) is advice, not a constraint.
 /// </para>
 /// <para>
