@@ -11,5 +11,5 @@ alongside them, each under its own license.
 | Npgsql | `Stellaegis.Secrets.PostgreSQL` | PostgreSQL | <https://github.com/npgsql/npgsql> |
 | Microsoft.Extensions.\*, ASP.NET Core | all packages | MIT | <https://github.com/dotnet> |
 
-Test-only dependencies (xUnit, Microsoft.NET.Test.Sdk, ASP.NET Core TestHost) are not part of any
+Test-only dependencies (xUnit, ASP.NET Core TestHost) are not part of any
 package and are not listed here.

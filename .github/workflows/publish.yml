@@ -55,7 +55,7 @@ jobs:
 
       # Quality gate: the whole solution must build and its tests pass before anything is pushed.
       - name: Test
-        run: dotnet test Stellaegis.Secrets.slnx -c Release
+        run: dotnet test --solution Stellaegis.Secrets.slnx -c Release
 
       - name: Pack
         run: dotnet pack Stellaegis.Secrets.slnx -c Release

@@ -206,7 +206,7 @@ then publish on the transport you already use.
 ## Building and testing
 
 ```sh
-dotnet test Stellaegis.Secrets.slnx
+dotnet test --solution Stellaegis.Secrets.slnx
 ```
 
 The PostgreSQL tests need a server. By default they connect to `127.0.0.1` as `postgres`, and create
