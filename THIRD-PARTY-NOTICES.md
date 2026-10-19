@@ -7,6 +7,7 @@ alongside them, each under its own license.
 
 | Component | Used by | License (SPDX) | Project |
 | --- | --- | --- | --- |
+| Stellaegis.Primitives | `Stellaegis.Secrets` | MIT | <https://github.com/Stellaegis/Stellaegis.Primitives> |
 | Dapper | `Stellaegis.Secrets.PostgreSQL` | Apache-2.0 | <https://github.com/DapperLib/Dapper> |
 | Npgsql | `Stellaegis.Secrets.PostgreSQL` | PostgreSQL | <https://github.com/npgsql/npgsql> |
 | Microsoft.Extensions.\*, ASP.NET Core | all packages | MIT | <https://github.com/dotnet> |

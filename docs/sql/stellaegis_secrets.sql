@@ -19,8 +19,8 @@ create extension if not exists pgcrypto;
 -- Encrypted storage of application secrets (connection strings, API keys,
 -- OIDC secrets, etc.) as JSON encrypted via pgp_sym_encrypt.
 --
--- Key (path): the text form of a SecretPath — segments of [A-Za-z0-9_-] joined by '.'
---             (e.g. tenantDB.primary.postgresql.acme). The module gives segments no meaning.
+-- Key (path): the text form of a SecretPath, {space}.{module}.{name}... joined by '.'
+--             (e.g. acme.billing.smtp.password). The names after the module belong to it.
 -- Value:      the encrypted secret, any text — often a JSON document.
 --
 -- Read:  SELECT pgp_sym_decrypt(secret_json, @passphrase)::text FROM vault.secrets WHERE path = @path
@@ -39,7 +39,7 @@ create table vault.secrets (
 );
 
 comment on table  vault.secrets             is 'Secrets encrypted via pgp_sym_encrypt (pgcrypto). One secret = one path.';
-comment on column vault.secrets.path        is 'Text form of a SecretPath: segments joined by a dot (e.g. tenantDB.primary.postgresql.acme).';
+comment on column vault.secrets.path        is 'Text form of a SecretPath: segments joined by a dot (e.g. acme.billing.smtp.password).';
 comment on column vault.secrets.secret_json is 'The encrypted secret. Never decrypt it in a view or a log.';
 comment on column vault.secrets.key_slot    is 'Active encryption slot (1 or 2, rotation modulo 2). Tells which passphrase to use for decryption.';
 

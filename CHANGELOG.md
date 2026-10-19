@@ -5,6 +5,26 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Breaking.** A `SecretPath` has a fixed shape, `{space}.{module}.{name}…`: a compartment, `_shared`
+  or `_assembly`, then the name of an `IStellaegisModule`, then at least one name. Every secret of a
+  compartment lies under one prefix, `TextPrefixOf(compartment)`. `SecretPath.From` is removed:
+  build a path with `For<TModule>(space, names)` or `ForAssembly<TModule>(names)`. `Parse` refuses
+  any other shape, and the advised naming grammar is gone.
+- `Stellaegis.Secrets` depends on `Stellaegis.Primitives`, its core only, for `Space`, `Compartment`
+  and `IStellaegisModule`.
+
+### Migrating from 1.x
+
+- `SecretPath.From("tenantDB", "primary", "postgresql", "acme")` becomes, for instance,
+  `SecretPath.For<DatabaseModule>(Compartment.Parse("acme"), "primary", "postgresql")`, where
+  `DatabaseModule` is the `IStellaegisModule` of the code that writes and reads the secret.
+- A secret that belongs to no compartment takes `SecretPath.ForAssembly<TModule>(names)`.
+- Secrets stored under 1.x paths are not found under their new paths: rename them in the vault.
+
 ## [1.0.2] — 2026-10-14
 
 ### Changed
