@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+
 namespace Stellaegis.Secrets.Scaleway;
 
 /// <summary>
@@ -28,4 +30,25 @@ public sealed class ScalewaySecretsOptions
     /// Override for testing or private endpoints.
     /// </summary>
     public string BaseUrl { get; set; } = "https://api.scaleway.com";
+
+    /// <summary>The first setting that keeps the provider from working, or <see langword="null"/>.</summary>
+    internal string? FindError()
+    {
+        if (string.IsNullOrWhiteSpace(ProjectId))
+            return "ProjectId is required.";
+
+        if (string.IsNullOrWhiteSpace(ApiToken))
+            return "ApiToken is required.";
+
+        return null;
+    }
+}
+
+/// <summary>
+/// Validates <see cref="ScalewaySecretsOptions"/> when they are built — at host start, with <c>ValidateOnStart</c>.
+/// </summary>
+internal sealed class ScalewaySecretsOptionsValidator : IValidateOptions<ScalewaySecretsOptions>
+{
+    public ValidateOptionsResult Validate(string? name, ScalewaySecretsOptions options) =>
+        options.FindError() is { } error ? ValidateOptionsResult.Fail(error) : ValidateOptionsResult.Success;
 }

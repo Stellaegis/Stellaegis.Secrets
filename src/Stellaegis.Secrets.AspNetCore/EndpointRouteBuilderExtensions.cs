@@ -27,6 +27,11 @@ namespace Stellaegis.Secrets.AspNetCore;
 /// Write endpoints answer <c>501 Not Implemented</c> when the registered provider is read-only
 /// (no <see cref="IMutableSecretsProvider"/>).
 /// </para>
+/// <para>
+/// The endpoints carry no route name, so the vault can be mapped several times in one host. A host that wants
+/// names — for links or an OpenAPI document — adds a convention to the returned group that names each endpoint
+/// distinctly.
+/// </para>
 /// </remarks>
 /// <example>
 /// <code>
@@ -77,7 +82,6 @@ public static class EndpointRouteBuilderExtensions
                 var secrets = await provider.GetSecretsAsync(req.Paths, ct);
                 return Results.Ok(secrets);
             })
-            .WithName("GetVaultSecrets")
             .Produces<IReadOnlyDictionary<SecretPath, string>>(StatusCodes.Status200OK);
 
         group.MapPost("/set", async (
@@ -91,7 +95,6 @@ public static class EndpointRouteBuilderExtensions
                 await mutable.SetSecretAsync(req.Path, req.Value, ct);
                 return Results.NoContent();
             })
-            .WithName("SetVaultSecret")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status501NotImplemented);
 
@@ -106,7 +109,6 @@ public static class EndpointRouteBuilderExtensions
                 await mutable.DeleteSecretAsync(req.Path, ct);
                 return Results.NoContent();
             })
-            .WithName("DeleteVaultSecret")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status501NotImplemented);
 

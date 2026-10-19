@@ -5,6 +5,8 @@
 -- All constraints explicitly named.
 --
 -- Prerequisite: pgcrypto extension (symmetric encryption via pgp_sym_encrypt).
+-- create extension needs a database administrator: run this script under such an account, or have
+-- the extension created beforehand. The application itself connects under an ordinary role.
 -- The passphrases come from DatabaseSecretsOptions (Stellaegis:Secrets:Keys:{1|2} by default).
 -- Never store a passphrase in the database or in source code.
 -- ============================================================================
@@ -46,22 +48,3 @@ comment on column vault.secrets.key_slot    is 'Active encryption slot (1 or 2, 
 -- Index on the path prefix, for the purge of a compartment: every path under its prefix.
 create index ix_vault_secrets_path_prefix
   on vault.secrets (path text_pattern_ops);
-
--- ============================================================================
--- Framework evolution tracking
--- ============================================================================
-
-create table vault._schema_migrations (
-  version      smallint     not null,
-  script_name  text         not null,
-  checksum     text         not null,
-  applied_at   timestamptz  not null default now(),
-  constraint pk_vault_schema_migrations primary key (version)
-);
-
-create table vault._seed_migrations (
-  version      smallint     not null,
-  description  text         not null,
-  applied_at   timestamptz  not null default now(),
-  constraint pk_vault_seed_migrations primary key (version)
-);

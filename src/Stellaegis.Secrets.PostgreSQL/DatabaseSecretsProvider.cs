@@ -20,17 +20,17 @@ public sealed class DatabaseSecretsProvider : IMutableSecretsProvider, ISecretsP
     private readonly DatabaseSecretsOptions _opts;
     private readonly ILogger<DatabaseSecretsProvider> _logger;
 
-    /// <summary>Creates the provider, validating that the configured active key slot has a passphrase.</summary>
+    /// <summary>Creates the provider, validating its options.</summary>
+    /// <exception cref="OptionsValidationException">The options keep the provider from working.</exception>
     public DatabaseSecretsProvider(IOptions<DatabaseSecretsOptions> options, ILogger<DatabaseSecretsProvider> logger)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _opts   = options?.Value ?? throw new ArgumentNullException(nameof(options));
+        _logger = Guard.NotNull(logger);
+        _opts   = Guard.NotNull(options).Value;
 
-        if (string.IsNullOrWhiteSpace(_opts.ConnectionString))
-            throw new ArgumentException("ConnectionString is required.", nameof(options));
-
-        // Validate that the active slot has a passphrase (throws if not configured)
-        _ = _opts.ActivePassphrase;
+        // Registered through AddDatabaseSecretsProvider, the options are validated before this point — at host
+        // start, or on first resolution without a host. Built by hand, they are validated here.
+        if (_opts.FindError() is { } error)
+            throw new OptionsValidationException(Options.DefaultName, typeof(DatabaseSecretsOptions), [error]);
 
         _connectionString = _opts.ConnectionString;
     }

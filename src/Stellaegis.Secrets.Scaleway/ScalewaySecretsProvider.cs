@@ -25,6 +25,7 @@ public sealed partial class ScalewaySecretsProvider : ISecretsProvider
     /// <summary>
     /// Initializes a new instance of <see cref="ScalewaySecretsProvider"/>.
     /// </summary>
+    /// <exception cref="OptionsValidationException">The options keep the provider from working.</exception>
     public ScalewaySecretsProvider(
         IHttpClientFactory httpClientFactory,
         IOptions<ScalewaySecretsOptions> options,
@@ -35,10 +36,10 @@ public sealed partial class ScalewaySecretsProvider : ISecretsProvider
 
         var opts = options?.Value ?? throw new ArgumentNullException(nameof(options));
 
-        if (string.IsNullOrWhiteSpace(opts.ProjectId))
-            throw new ArgumentException("ProjectId is required.", nameof(options));
-        if (string.IsNullOrWhiteSpace(opts.ApiToken))
-            throw new ArgumentException("ApiToken is required.", nameof(options));
+        // Registered through AddScalewaySecretsProvider, the options are validated before this point — at host
+        // start, or on first resolution without a host. Built by hand, they are validated here.
+        if (opts.FindError() is { } error)
+            throw new OptionsValidationException(Options.DefaultName, typeof(ScalewaySecretsOptions), [error]);
 
         _options = opts;
     }

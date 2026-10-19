@@ -203,6 +203,12 @@ To set an option from code instead — a connection string kept elsewhere, for i
 registration with `services.PostConfigure<DatabaseSecretsOptions>(o => ...)`. The Scaleway provider
 and the HTTP client follow the same pattern.
 
+The options are checked when the host starts. A missing connection string, an active slot other than
+1 or 2, or no passphrase for the active slot stops the start with an `OptionsValidationException`
+that names the setting. The Scaleway provider checks `ProjectId` and `ApiToken` the same way. An
+application without a .NET host, such as a desktop application, gets the same exception the first
+time it resolves the provider.
+
 ### Key slots
 
 The provider holds two passphrases, in slots 1 and 2. New writes are encrypted with the active
@@ -260,7 +266,8 @@ app.MapGroup("/api/vault").MapSecretsEndpointsAnonymous();
 ```
 
 Three endpoints are mapped under the group: `POST secrets/get`, `secrets/set` and `secrets/delete`.
-The write endpoints answer `501 Not Implemented` when the registered provider is read-only.
+The write endpoints answer `501 Not Implemented` when the registered provider is read-only. The
+endpoints carry no route name, so you can map them more than once in one host.
 
 Everything else about the host is yours to configure: the authentication scheme, CORS, rate
 limiting, forwarded headers, health checks. The library makes no assumption about how your services

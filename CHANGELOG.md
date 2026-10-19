@@ -16,6 +16,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   any other shape, and the advised naming grammar is gone.
 - `Stellaegis.Secrets` depends on `Stellaegis.Primitives`, its core only, for `Space`, `Compartment`,
   `Actor` and `IStellaegisModule`.
+- The options of the PostgreSQL and Scaleway providers are validated when the host starts, and a
+  provider built by hand validates them in its constructor: both throw `OptionsValidationException`,
+  naming the setting. The PostgreSQL provider used to throw `ArgumentException` or
+  `InvalidOperationException` on its first resolution, and accepted an active slot other than 1 or 2.
+- The HTTP endpoints carry no route name, so they can be mapped more than once in one host.
+
+### Removed
+
+- **Breaking.** `DatabaseSecretsOptions.Passphrase`, the single passphrase read as slot 1. Set
+  `Keys:1` instead.
+- The tables `vault._schema_migrations` and `vault._seed_migrations` leave the schema script: nothing
+  writes them. The script notes that creating the pgcrypto extension needs a database administrator.
 
 ### Added
 
@@ -31,6 +43,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `DatabaseModule` is the `IStellaegisModule` of the code that writes and reads the secret.
 - A secret that belongs to no compartment takes `SecretPath.ForAssembly<TModule>(names)`.
 - Secrets stored under 1.x paths are not found under their new paths: rename them in the vault.
+- A configuration that sets `Passphrase` sets `Keys:1` instead.
 
 ## [1.0.2] — 2026-10-14
 

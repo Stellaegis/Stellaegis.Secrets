@@ -177,6 +177,8 @@ public sealed class DatabaseSecretsProviderTests(PostgreSqlFixture database) : I
     [Fact]
     public void No_passphrase_for_the_active_slot_fails_at_construction()
     {
-        Assert.Throws<InvalidOperationException>(() => Provider(2, (1, Key1)));
+        var error = Assert.Throws<OptionsValidationException>(() => Provider(2, (1, Key1)));
+
+        Assert.Contains("Keys:2", error.Message);
     }
 }

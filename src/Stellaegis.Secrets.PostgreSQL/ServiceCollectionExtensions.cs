@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace Stellaegis.Secrets.PostgreSQL;
 
@@ -11,7 +13,8 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Registers <see cref="DatabaseSecretsProvider"/> as <see cref="ISecretsProvider"/>,
     /// <see cref="IMutableSecretsProvider"/> and <see cref="ISecretsPurge"/> (same singleton instance — it
-    /// implements all three), with its options bound from <paramref name="sectionName"/>.
+    /// implements all three), with its options bound from <paramref name="sectionName"/>. The options are
+    /// validated at host start; without a host, on first resolution.
     /// Uses a PostgreSQL table with pgcrypto encryption as a self-hosted vault.
     /// </summary>
     /// <remarks>
@@ -23,7 +26,8 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration,
         string sectionName = DatabaseSecretsOptions.SectionName)
     {
-        services.Configure<DatabaseSecretsOptions>(configuration.GetSection(sectionName));
+        services.AddOptions<DatabaseSecretsOptions>().Bind(configuration.GetSection(sectionName)).ValidateOnStart();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<DatabaseSecretsOptions>, DatabaseSecretsOptionsValidator>());
         services.AddSingleton<DatabaseSecretsProvider>();
         services.AddSingleton<ISecretsProvider>(sp => sp.GetRequiredService<DatabaseSecretsProvider>());
         services.AddSingleton<IMutableSecretsProvider>(sp => sp.GetRequiredService<DatabaseSecretsProvider>());
