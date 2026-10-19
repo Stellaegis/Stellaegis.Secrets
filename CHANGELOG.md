@@ -5,7 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [4.0.0] — 2026-10-19
+
+A secret path has a fixed shape, {space}.{module}.{name}…, so that every secret of a compartment lies
+under one prefix, and the new `ISecretsPurge` removes them all. The package takes
+`Stellaegis.Primitives` for its compartments, spaces, actors and modules. The five packages move
+together to 4.0.0, skipping 2 and 3, to share the major version of the Stellaegis family.
 
 ### Changed
 
@@ -78,6 +83,7 @@ First release as a standalone library.
   (`Stellaegis.Secrets.AspNetCore`), and the matching client (`Stellaegis.Secrets.Client`), whose
   authentication the caller attaches.
 
+[4.0.0]: https://github.com/Stellaegis/Stellaegis.Secrets/releases/tag/v4.0.0
 [1.0.2]: https://github.com/Stellaegis/Stellaegis.Secrets/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Stellaegis/Stellaegis.Secrets/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Stellaegis/Stellaegis.Secrets/releases/tag/v1.0.0
