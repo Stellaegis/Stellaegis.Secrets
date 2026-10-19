@@ -9,9 +9,9 @@ namespace Stellaegis.Secrets.PostgreSQL;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers <see cref="DatabaseSecretsProvider"/> as both <see cref="ISecretsProvider"/> and
-    /// <see cref="IMutableSecretsProvider"/> (same singleton instance — it implements both), with its
-    /// options bound from <paramref name="sectionName"/>.
+    /// Registers <see cref="DatabaseSecretsProvider"/> as <see cref="ISecretsProvider"/>,
+    /// <see cref="IMutableSecretsProvider"/> and <see cref="ISecretsPurge"/> (same singleton instance — it
+    /// implements all three), with its options bound from <paramref name="sectionName"/>.
     /// Uses a PostgreSQL table with pgcrypto encryption as a self-hosted vault.
     /// </summary>
     /// <remarks>
@@ -27,6 +27,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<DatabaseSecretsProvider>();
         services.AddSingleton<ISecretsProvider>(sp => sp.GetRequiredService<DatabaseSecretsProvider>());
         services.AddSingleton<IMutableSecretsProvider>(sp => sp.GetRequiredService<DatabaseSecretsProvider>());
+        services.AddSingleton<ISecretsPurge>(sp => sp.GetRequiredService<DatabaseSecretsProvider>());
         return services;
     }
 }

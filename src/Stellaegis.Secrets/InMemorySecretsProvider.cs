@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Stellaegis.Primitives;
 
 namespace Stellaegis.Secrets;
 
@@ -9,7 +10,7 @@ namespace Stellaegis.Secrets;
 /// This provider stores secrets in memory and is not suitable for production. It keeps paths as they
 /// are, with no native name to translate to.
 /// </remarks>
-public sealed class InMemorySecretsProvider : ISecretsProvider
+public sealed class InMemorySecretsProvider : ISecretsProvider, ISecretsPurge
 {
     private readonly Dictionary<SecretPath, string> _secrets = [];
     private readonly ILogger<InMemorySecretsProvider> _logger;
@@ -74,5 +75,21 @@ public sealed class InMemorySecretsProvider : ISecretsProvider
         }
 
         return Task.FromResult((IReadOnlyDictionary<SecretPath, string>)result);
+    }
+
+    /// <inheritdoc />
+    public Task<int> PurgeCompartmentAsync(Compartment compartment, Actor actor, CancellationToken cancellationToken = default)
+    {
+        var prefix = SecretPath.TextPrefixOf(compartment);
+        Guard.NotNull(actor);
+
+        _logger.LogInformation("Purging the secrets of compartment {Compartment}, by {Actor}.", compartment, actor);
+
+        var purged = _secrets.Keys.Where(p => p.ToString().StartsWith(prefix, StringComparison.Ordinal)).ToList();
+        foreach (var path in purged)
+            _secrets.Remove(path);
+
+        _logger.LogInformation("Purged {SecretCount} secrets of compartment {Compartment}, by {Actor}.", purged.Count, compartment, actor);
+        return Task.FromResult(purged.Count);
     }
 }

@@ -41,6 +41,19 @@ public sealed class RegistrationTests
     }
 
     [Fact]
+    public void PostgreSQL_registers_one_provider_that_also_purges()
+    {
+        var provider = new ServiceCollection()
+            .AddLogging()
+            .AddDatabaseSecretsProvider(Configuration(
+                ("Stellaegis:Secrets:ConnectionString", "Host=db"),
+                ("Stellaegis:Secrets:Keys:1", "one")))
+            .BuildServiceProvider();
+
+        Assert.Same(provider.GetRequiredService<IMutableSecretsProvider>(), provider.GetRequiredService<ISecretsPurge>());
+    }
+
+    [Fact]
     public void Scaleway_options_bind_from_the_default_section()
     {
         var services = new ServiceCollection().AddScalewaySecretsProvider(Configuration(

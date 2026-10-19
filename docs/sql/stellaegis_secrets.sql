@@ -43,7 +43,7 @@ comment on column vault.secrets.path        is 'Text form of a SecretPath: segme
 comment on column vault.secrets.secret_json is 'The encrypted secret. Never decrypt it in a view or a log.';
 comment on column vault.secrets.key_slot    is 'Active encryption slot (1 or 2, rotation modulo 2). Tells which passphrase to use for decryption.';
 
--- Index on the path prefix, for queries on all the paths under a given prefix.
+-- Index on the path prefix, for the purge of a compartment: every path under its prefix.
 create index ix_vault_secrets_path_prefix
   on vault.secrets (path text_pattern_ops);
 

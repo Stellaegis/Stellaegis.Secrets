@@ -162,6 +162,20 @@ provider and exposes it over HTTP; other processes use it through the client, wh
 same interface. Your code does not change between the in-process and the remote setups — only the
 registration at startup does. The cost is one network call per read, and a host to secure.
 
+### Where the keys live
+
+A provider running in your application's process holds what opens the vault. For the PostgreSQL
+provider, that is the connection string to the table and the passphrases. Any code that runs with
+these settings can read every secret of every compartment, with or without this library: `psql` and
+`pgp_sym_decrypt` are enough. The library cannot prevent it. What protects the vault is where these
+settings live.
+
+A vault exposed over HTTP keeps them on its own host. Your applications then hold only the credential
+they call the vault with, which you can revoke and trace caller by caller, and the host can be
+reachable from your own services only. In return, the HTTP endpoints apply one authorization policy
+to every path today: a caller allowed to read reads every secret, whatever its space or module.
+Authorizing each call by the space and the module of the path it asks for is not available yet.
+
 ## The PostgreSQL vault
 
 Create the schema with [`docs/sql/stellaegis_secrets.sql`](https://github.com/Stellaegis/Stellaegis.Secrets/blob/main/docs/sql/stellaegis_secrets.sql), in the
@@ -201,6 +215,27 @@ written from then on use the new passphrase, and older secrets still read with t
 ⚠ The library does not yet re-encrypt existing secrets with the active slot. Until it does, the old
 passphrase must stay configured as long as a row uses it. You can see which rows still do with
 `SELECT path FROM vault.secrets WHERE key_slot = <old slot>`.
+
+### Purging a compartment
+
+When a compartment goes away — a customer leaves, for instance — its secrets go with it.
+`ISecretsPurge.PurgeCompartmentAsync(compartment, actor)` deletes every secret under the
+compartment's prefix, whatever module wrote it, and answers how many it deleted. The shared space and
+the application's own secrets stay. A replayed purge completes an interrupted one, and answers `0`
+once nothing is left. The purge publishes no event: it logs its actor when it starts and when it
+ends.
+
+```csharp
+var purged = await purge.PurgeCompartmentAsync(Compartment.Parse("acme"), Actor.Parse("job:purge"));
+```
+
+`AddDatabaseSecretsProvider` registers `ISecretsPurge` next to the other two interfaces, and
+`InMemorySecretsProvider` implements it too. The purge has an interface of its own, apart from
+`IMutableSecretsProvider`. Every module writes its secrets through `IMutableSecretsProvider`, while
+only the code in charge of administration takes `ISecretsPurge`: a module that keeps its own secrets
+cannot erase those of the others.
+
+The purge runs in the process that holds the provider. It has no HTTP endpoint.
 
 ## Exposing a vault over HTTP
 

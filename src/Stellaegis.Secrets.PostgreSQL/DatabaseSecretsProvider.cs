@@ -2,6 +2,7 @@ using Dapper;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using Stellaegis.Primitives;
 
 namespace Stellaegis.Secrets.PostgreSQL;
 
@@ -11,7 +12,7 @@ namespace Stellaegis.Secrets.PostgreSQL;
 /// as the active slot — <see cref="DatabaseSecretsOptions.ActiveKeySlot"/> controls which
 /// slot is used for new writes; <see cref="DatabaseSecretsOptions.Keys"/> provides both.
 /// </summary>
-public sealed class DatabaseSecretsProvider : IMutableSecretsProvider
+public sealed class DatabaseSecretsProvider : IMutableSecretsProvider, ISecretsPurge
 {
     private const string Table = "vault.secrets";
 
@@ -146,5 +147,27 @@ public sealed class DatabaseSecretsProvider : IMutableSecretsProvider
             cancellationToken: ct));
 
         _logger.LogDebug("Deleted secret from database for path '{Path}'", path);
+    }
+
+    /// <inheritdoc />
+    public async Task<int> PurgeCompartmentAsync(Compartment compartment, Actor actor, CancellationToken cancellationToken = default)
+    {
+        var prefix = SecretPath.TextPrefixOf(compartment);
+        Guard.NotNull(actor);
+
+        // Logged before anything is deleted: an interrupted purge still names its author.
+        _logger.LogInformation("Purging the secrets of compartment {Compartment}, by {Actor}.", compartment, actor);
+
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        // The prefix holds no LIKE wildcard: a compartment is made of lowercase letters, digits and hyphens.
+        var purged = await connection.ExecuteAsync(new CommandDefinition(
+            $"DELETE FROM {Table} WHERE path LIKE @pattern",
+            new { pattern = prefix + "%" },
+            cancellationToken: cancellationToken));
+
+        _logger.LogInformation("Purged {SecretCount} secrets of compartment {Compartment}, by {Actor}.", purged, compartment, actor);
+        return purged;
     }
 }

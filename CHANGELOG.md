@@ -14,8 +14,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   compartment lies under one prefix, `TextPrefixOf(compartment)`. `SecretPath.From` is removed:
   build a path with `For<TModule>(space, names)` or `ForAssembly<TModule>(names)`. `Parse` refuses
   any other shape, and the advised naming grammar is gone.
-- `Stellaegis.Secrets` depends on `Stellaegis.Primitives`, its core only, for `Space`, `Compartment`
-  and `IStellaegisModule`.
+- `Stellaegis.Secrets` depends on `Stellaegis.Primitives`, its core only, for `Space`, `Compartment`,
+  `Actor` and `IStellaegisModule`.
+
+### Added
+
+- `ISecretsPurge.PurgeCompartmentAsync(compartment, actor)` deletes every secret of a compartment,
+  whatever module wrote it, and answers how many it deleted; replayed, it completes an interrupted
+  purge. Implemented by the PostgreSQL provider, which registers it, and by the in-memory provider.
+  It has no HTTP endpoint.
 
 ### Migrating from 1.x
 

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using Stellaegis.Primitives;
 using Stellaegis.Secrets.PostgreSQL;
 
 namespace Stellaegis.Secrets.Tests;
@@ -137,6 +138,40 @@ public sealed class DatabaseSecretsProviderTests(PostgreSqlFixture database) : I
         await provider.DeleteSecretAsync(path, ct);
 
         await Assert.ThrowsAsync<KeyNotFoundException>(() => provider.GetSecretAsync(path, ct));
+    }
+
+    [Fact]
+    public async Task A_purge_deletes_every_secret_of_its_compartment_and_nothing_else()
+    {
+        var provider = Provider(1, (1, Key1));
+        var ct       = TestContext.Current.CancellationToken;
+        // Compartments no other test writes: the tests share one table.
+        var target   = Compartment.Parse("p" + Guid.NewGuid().ToString("N"));
+        var sibling  = Compartment.Parse(target.Value + "-2");
+        var marker   = Guid.NewGuid().ToString("N");
+
+        var purged = new[]
+        {
+            SecretPath.For<BillingModule>(target, marker, "a"),
+            SecretPath.For<DesktopModule>(target, marker, "b"),
+        };
+        var kept = new[]
+        {
+            SecretPath.For<BillingModule>(sibling, marker),
+            SecretPath.For<BillingModule>(Space.Shared, marker),
+            SecretPath.ForAssembly<BillingModule>(marker),
+        };
+        foreach (var path in purged.Concat(kept))
+            await provider.SetSecretAsync(path, "value", ct);
+
+        Assert.Equal(2, await provider.PurgeCompartmentAsync(target, Actor.Parse("job:purge"), ct));
+
+        Assert.Empty(await provider.GetSecretsAsync(purged, ct));
+        Assert.Equal(kept.Length, (await provider.GetSecretsAsync(kept, ct)).Count);
+        Assert.Equal(0, await provider.PurgeCompartmentAsync(target, Actor.Parse("job:purge"), ct));
+
+        foreach (var path in kept)
+            await provider.DeleteSecretAsync(path, ct);
     }
 
     [Fact]
