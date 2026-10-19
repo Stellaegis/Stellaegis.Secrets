@@ -24,7 +24,7 @@ public sealed class DatabaseSecretsProviderTests(PostgreSqlFixture database) : I
     }
 
     /// <summary>A path no other test writes: the tests share one table.</summary>
-    private static SecretPath UniquePath() => SecretPath.From("test", Guid.NewGuid().ToString("N"));
+    private static SecretPath UniquePath() => SecretPath.ForAssembly<BillingModule>("test", Guid.NewGuid().ToString("N"));
 
     [Fact]
     public async Task A_written_secret_reads_back()

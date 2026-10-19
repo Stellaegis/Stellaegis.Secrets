@@ -52,13 +52,13 @@ public sealed class VaultApiTests
         var (app, client, store) = await StartAsync(a => a.MapGroup("/api/vault").MapSecretsEndpointsAnonymous());
         await using var _ = app;
         var ct   = TestContext.Current.CancellationToken;
-        var path = SecretPath.Parse("tenantDB.primary.postgresql.acme");
+        var path = SecretPath.Parse("acme.billing.primary.postgresql");
 
         await client.SetSecretAsync(path, "s3cret", ct);
         Assert.Equal("s3cret", await store.GetSecretAsync(path, ct));
         Assert.Equal("s3cret", await client.GetSecretAsync(path, ct));
 
-        var batch = await client.GetSecretsAsync([path, SecretPath.From("missing")], ct);
+        var batch = await client.GetSecretsAsync([path, SecretPath.Parse("acme.billing.missing")], ct);
         Assert.Equal(new Dictionary<SecretPath, string> { [path] = "s3cret" }, batch);
 
         await client.DeleteSecretAsync(path, ct);
@@ -72,7 +72,7 @@ public sealed class VaultApiTests
         await using var _ = app;
 
         var error = await Assert.ThrowsAsync<HttpRequestException>(
-            () => client.GetSecretAsync(SecretPath.From("a"), TestContext.Current.CancellationToken));
+            () => client.GetSecretAsync(SecretPath.Parse("acme.billing.a"), TestContext.Current.CancellationToken));
         Assert.Equal(HttpStatusCode.Unauthorized, error.StatusCode);
     }
 

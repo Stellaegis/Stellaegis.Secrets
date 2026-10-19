@@ -14,7 +14,7 @@ namespace Stellaegis.Secrets;
 /// "Stellaegis": {
 ///   "Secrets": {
 ///     "Configuration": {
-///       "tenantDB.primary.postgresql.acme": "{\"connectionString\":\"Host=localhost;...\"}"
+///       "acme.billing.database": "{\"connectionString\":\"Host=localhost;...\"}"
 ///     }
 ///   }
 /// }

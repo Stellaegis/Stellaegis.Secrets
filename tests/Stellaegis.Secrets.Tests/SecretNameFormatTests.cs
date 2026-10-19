@@ -6,9 +6,9 @@ public sealed class SecretNameFormatTests
 {
     public static TheoryData<string> Paths => new()
     {
-        "tenantDB.primary.postgresql.acme",
-        "smtp-password",
-        "a_b.c-d",
+        "acme.billing.primary.postgresql",
+        "_shared.billing.smtp-password",
+        "_assembly.desktop.a_b.c-d",
     };
 
     [Theory]
@@ -22,26 +22,19 @@ public sealed class SecretNameFormatTests
     [Fact]
     public void Scaleway_puts_every_segment_but_the_last_in_folders()
     {
-        var path = SecretPath.Parse("tenantDB.primary.postgresql.acme");
+        var path = SecretPath.Parse("acme.billing.primary.postgresql");
 
-        Assert.Equal("/tenantDB/primary/postgresql/acme", ScalewaySecretNameFormat.Instance.Join(path));
-        Assert.Equal(("/tenantDB/primary/postgresql", "acme"), ScalewaySecretNameFormat.FolderAndName(path));
-    }
-
-    [Fact]
-    public void Scaleway_puts_a_single_segment_at_the_root()
-    {
-        var path = SecretPath.From("smtp-password");
-
-        Assert.Equal("/smtp-password", ScalewaySecretNameFormat.Instance.Join(path));
-        Assert.Equal(("/", "smtp-password"), ScalewaySecretNameFormat.FolderAndName(path));
+        Assert.Equal("/acme/billing/primary/postgresql", ScalewaySecretNameFormat.Instance.Join(path));
+        Assert.Equal(("/acme/billing/primary", "postgresql"), ScalewaySecretNameFormat.FolderAndName(path));
     }
 
     [Theory]
-    [InlineData("a/b")]
-    [InlineData("/a//b")]
+    [InlineData("acme/billing/smtp")]
+    [InlineData("/acme//billing/smtp")]
     [InlineData("/")]
-    [InlineData("/a.b")]
+    [InlineData("/acme/billing/a.b")]
+    [InlineData("/acme/billing")]
+    [InlineData("/tenantDB/primary/postgresql/acme")]
     public void Scaleway_refuses_a_name_that_is_not_a_path(string nativeName)
     {
         Assert.Throws<FormatException>(() => ScalewaySecretNameFormat.Instance.Split(nativeName));

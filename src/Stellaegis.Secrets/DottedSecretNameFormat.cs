@@ -2,7 +2,7 @@ namespace Stellaegis.Secrets;
 
 /// <summary>
 /// Native names in the text form of a path: segments joined by <c>.</c>, as in
-/// <c>tenantDB.primary.postgresql.acme</c>. Used by the configuration and PostgreSQL providers.
+/// <c>acme.billing.smtp.password</c>. Used by the configuration and PostgreSQL providers.
 /// </summary>
 public sealed class DottedSecretNameFormat : ISecretNameFormat
 {
