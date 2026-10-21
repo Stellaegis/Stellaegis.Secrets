@@ -38,7 +38,7 @@ public sealed class ConfigurationSecretsProviderTests
         var provider = Provider(ConfigurationSecretsProvider.SectionName, ("_assembly.desktop.b", "v"));
         var ct       = TestContext.Current.CancellationToken;
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => provider.GetSecretAsync(SecretPath.Parse("_assembly.desktop.c"), ct));
+        await Assert.ThrowsAsync<SecretNotFoundException>(() => provider.GetSecretAsync(SecretPath.Parse("_assembly.desktop.c"), ct));
 
         var batch = await provider.GetSecretsAsync([SecretPath.Parse("_assembly.desktop.b"), SecretPath.Parse("_assembly.desktop.c")], ct);
         Assert.Equal(new Dictionary<SecretPath, string> { [SecretPath.Parse("_assembly.desktop.b")] = "v" }, batch);

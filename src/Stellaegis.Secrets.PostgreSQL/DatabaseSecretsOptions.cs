@@ -1,4 +1,5 @@
-using Microsoft.Extensions.Options;
+using Stellaegis.Primitives;
+using Stellaegis.Primitives.Hosting;
 
 namespace Stellaegis.Secrets.PostgreSQL;
 
@@ -6,21 +7,23 @@ namespace Stellaegis.Secrets.PostgreSQL;
 /// Options for <see cref="DatabaseSecretsProvider"/> — a PostgreSQL-backed vault using pgcrypto encryption.
 /// </summary>
 /// <remarks>
-/// Key rotation uses a modulo-2 double-buffer pattern: two named slots (1 and 2) alternate as the
-/// active slot. Only the two current passphrases need to be in memory at any time.
+/// The passphrases rotate by slots, the shape of <see cref="KeySlots"/>: two slots, 1 and 2, one active for new
+/// writes, each row recording the slot that encrypted it.
 /// <code>
 /// Stellaegis:Secrets:ConnectionString = Host=...;Database=...
 /// Stellaegis:Secrets:ActiveKeySlot = 1
 /// Stellaegis:Secrets:Keys:1        = passphrase-for-slot-1
 /// Stellaegis:Secrets:Keys:2        = passphrase-for-slot-2  (empty until first rotation)
 /// </code>
+/// Validated when the host starts: a missing connection string or an active slot without a passphrase stops the
+/// start, naming the setting.
 /// </remarks>
-public sealed class DatabaseSecretsOptions
+public sealed class DatabaseSecretsOptions : IValidatableOptions
 {
     /// <summary>Default configuration section: <c>Stellaegis:Secrets</c>.</summary>
     public const string SectionName = "Stellaegis:Secrets";
 
-    /// <summary>Connection string to the PostgreSQL database hosting the vault table.</summary>
+    /// <summary>Connection string to the PostgreSQL database hosting the vault table, under the application's role.</summary>
     public string ConnectionString { get; set; } = string.Empty;
 
     /// <summary>
@@ -36,55 +39,19 @@ public sealed class DatabaseSecretsOptions
     /// </summary>
     public int ActiveKeySlot { get; set; } = 1;
 
+    /// <summary>The passphrases as slots, the shape every rotating secret of the family shares.</summary>
+    internal KeySlots Slots => new() { Keys = Keys, ActiveKeySlot = ActiveKeySlot };
+
     /// <summary>
-    /// Returns the passphrase for the given slot.
-    /// <list type="bullet">
-    ///   <item>Active slot: throws if not configured.</item>
-    ///   <item>Non-active slot: returns empty string when not configured — safe as long as
-    ///     no row in the vault uses that slot. If a row does, pgcrypto raises a decryption error.</item>
-    /// </list>
+    /// The passphrase of <paramref name="slot"/>: the active slot always has one; the other may be empty as long as
+    /// no row uses it — the SQL <c>CASE</c> never decrypts with an unused slot's value.
     /// </summary>
-    internal string GetPassphrase(int slot)
-    {
-        if (Keys.TryGetValue(slot, out var key) && !string.IsNullOrWhiteSpace(key))
-            return key;
-
-        // Non-active slots may not be configured yet (e.g. slot 2 before the first rotation).
-        // Return empty — the CASE expression in SQL short-circuits and never calls
-        // pgp_sym_decrypt with this value as long as no row uses that slot.
-        if (slot != ActiveKeySlot)
-            return string.Empty;
-
-        throw new InvalidOperationException(MissingActiveKey());
-    }
+    internal string GetPassphrase(int slot) => Slots.KeyOf(slot);
 
     /// <summary>Passphrase for the currently active slot — used for all new writes.</summary>
-    internal string ActivePassphrase => GetPassphrase(ActiveKeySlot);
+    internal string ActivePassphrase => Slots.ActiveKey;
 
-    /// <summary>The first setting that keeps the provider from working, or <see langword="null"/>.</summary>
-    internal string? FindError()
-    {
-        if (string.IsNullOrWhiteSpace(ConnectionString))
-            return "ConnectionString is required.";
-
-        if (ActiveKeySlot is not (1 or 2))
-            return $"ActiveKeySlot is {ActiveKeySlot}: it must be 1 or 2.";
-
-        if (!Keys.TryGetValue(ActiveKeySlot, out var key) || string.IsNullOrWhiteSpace(key))
-            return MissingActiveKey();
-
-        return null;
-    }
-
-    private string MissingActiveKey() =>
-        $"No passphrase configured for active key slot {ActiveKeySlot}: set Keys:{ActiveKeySlot} in the section of the options.";
-}
-
-/// <summary>
-/// Validates <see cref="DatabaseSecretsOptions"/> when they are built — at host start, with <c>ValidateOnStart</c>.
-/// </summary>
-internal sealed class DatabaseSecretsOptionsValidator : IValidateOptions<DatabaseSecretsOptions>
-{
-    public ValidateOptionsResult Validate(string? name, DatabaseSecretsOptions options) =>
-        options.FindError() is { } error ? ValidateOptionsResult.Fail(error) : ValidateOptionsResult.Success;
+    /// <inheritdoc/>
+    public string? FindError()
+        => string.IsNullOrWhiteSpace(ConnectionString) ? "ConnectionString is required." : Slots.FindError();
 }

@@ -1,17 +1,16 @@
+using Stellaegis.Primitives.Hosting;
+
 namespace Stellaegis.Secrets.Client;
 
 /// <summary>
-/// Configuration for the Vault API client.
-/// Bind from the <c>Stellaegis:Secrets:Client</c> configuration section.
+/// Configuration for the vault client: the base address of the host mapping the secrets module and the timeout
+/// of each call, validated when the host starts. Bind from the <c>Stellaegis:Secrets:Client</c> section.
 /// </summary>
-public sealed class VaultClientOptions
+public sealed class VaultClientOptions : StellaegisClientOptions
 {
     /// <summary>Default configuration section name: <c>Stellaegis:Secrets:Client</c>.</summary>
     public const string SectionName = "Stellaegis:Secrets:Client";
 
-    /// <summary>Base URL of the Vault API (e.g. <c>https://vault.example.com/api/vault/</c>).</summary>
-    public required string BaseUrl { get; init; }
-
-    /// <summary>HTTP timeout for vault requests. Defaults to 10 seconds.</summary>
-    public TimeSpan Timeout { get; init; } = TimeSpan.FromSeconds(10);
+    /// <summary>Creates the options; the timeout of a vault call defaults to ten seconds.</summary>
+    public VaultClientOptions() => Timeout = TimeSpan.FromSeconds(10);
 }

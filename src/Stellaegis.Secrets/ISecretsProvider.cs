@@ -12,7 +12,7 @@ public interface ISecretsProvider
     /// <summary>
     /// Retrieves the value of the secret at <paramref name="path"/>.
     /// </summary>
-    /// <exception cref="KeyNotFoundException">No secret exists at <paramref name="path"/>.</exception>
+    /// <exception cref="SecretNotFoundException">No secret exists at <paramref name="path"/>.</exception>
     Task<string> GetSecretAsync(SecretPath path, CancellationToken cancellationToken = default);
 
     /// <summary>

@@ -59,7 +59,7 @@ public sealed class ConfigurationSecretsProvider : ISecretsProvider
         if (value is null)
         {
             _logger.LogError("Secret not found in configuration for path '{Path}' (section '{Section}')", path, _section.Path);
-            throw new KeyNotFoundException($"Secret not found: {path}");
+            throw new SecretNotFoundException(path);
         }
 
         _logger.LogDebug("Retrieved secret from configuration for path '{Path}'", path);

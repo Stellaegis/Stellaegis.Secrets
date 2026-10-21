@@ -6,7 +6,8 @@ using Stellaegis.Secrets.PostgreSQL;
 
 namespace Stellaegis.Secrets.Tests;
 
-public sealed class DatabaseSecretsProviderTests(PostgreSqlFixture database) : IClassFixture<PostgreSqlFixture>
+[Collection(PostgreSqlCollection.Name)]
+public sealed class DatabaseSecretsProviderTests(PostgreSqlFixture database)
 {
     private const string Key1 = "passphrase-for-slot-1";
     private const string Key2 = "passphrase-for-slot-2";
@@ -121,7 +122,8 @@ public sealed class DatabaseSecretsProviderTests(PostgreSqlFixture database) : I
         var ct       = TestContext.Current.CancellationToken;
         await provider.SetSecretAsync(present, "value", ct);
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => provider.GetSecretAsync(missing, ct));
+        var error = await Assert.ThrowsAsync<SecretNotFoundException>(() => provider.GetSecretAsync(missing, ct));
+        Assert.Equal(missing, error.Path);
 
         var batch = await provider.GetSecretsAsync([present, missing], ct);
         Assert.Equal(new Dictionary<SecretPath, string> { [present] = "value" }, batch);
@@ -137,7 +139,7 @@ public sealed class DatabaseSecretsProviderTests(PostgreSqlFixture database) : I
 
         await provider.DeleteSecretAsync(path, ct);
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => provider.GetSecretAsync(path, ct));
+        await Assert.ThrowsAsync<SecretNotFoundException>(() => provider.GetSecretAsync(path, ct));
     }
 
     [Fact]

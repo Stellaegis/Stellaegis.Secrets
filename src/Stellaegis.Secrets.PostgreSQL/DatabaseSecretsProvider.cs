@@ -41,7 +41,7 @@ public sealed class DatabaseSecretsProvider : IMutableSecretsProvider, ISecretsP
     /// <inheritdoc />
     public async Task<string> GetSecretAsync(SecretPath path, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(path);
+        Guard.NotNull(path);
 
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -62,7 +62,7 @@ public sealed class DatabaseSecretsProvider : IMutableSecretsProvider, ISecretsP
         if (result is null)
         {
             _logger.LogError("Secret not found in database for path '{Path}'", path);
-            throw new KeyNotFoundException($"Secret not found: {path}");
+            throw new SecretNotFoundException(path);
         }
 
         _logger.LogDebug("Retrieved secret from database for path '{Path}'", path);
@@ -74,7 +74,7 @@ public sealed class DatabaseSecretsProvider : IMutableSecretsProvider, ISecretsP
         IEnumerable<SecretPath> paths,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(paths);
+        Guard.NotNull(paths);
 
         // Native name → requested path: rows map back to what was asked, never parsed from the table.
         var requested = new Dictionary<string, SecretPath>(StringComparer.Ordinal);
@@ -109,8 +109,8 @@ public sealed class DatabaseSecretsProvider : IMutableSecretsProvider, ISecretsP
     /// <inheritdoc />
     public async Task SetSecretAsync(SecretPath path, string value, CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(path);
-        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        Guard.NotNull(path);
+        Guard.NotWhiteSpace(value);
 
         var slot = _opts.ActiveKeySlot;
         var passphrase = _opts.ActivePassphrase;
@@ -136,7 +136,7 @@ public sealed class DatabaseSecretsProvider : IMutableSecretsProvider, ISecretsP
     /// <inheritdoc />
     public async Task DeleteSecretAsync(SecretPath path, CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(path);
+        Guard.NotNull(path);
 
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(ct).ConfigureAwait(false);

@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Stellaegis.Primitives;
+using Stellaegis.Primitives.Hosting;
 using Stellaegis.Secrets.PostgreSQL;
 using Stellaegis.Secrets.Scaleway;
 
@@ -79,6 +81,7 @@ public sealed class RegistrationTests
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
+        builder.Services.AddStellaegisFrame(ApplicationFrame.SingleCompartment("acme"));
         builder.Services.AddDatabaseSecretsProvider(Configuration(
             ("Stellaegis:Secrets:ConnectionString", connectionString),
             ("Stellaegis:Secrets:Keys:1", key),
@@ -95,6 +98,7 @@ public sealed class RegistrationTests
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
+        builder.Services.AddStellaegisFrame(ApplicationFrame.SingleCompartment("acme"));
         builder.Services.AddScalewaySecretsProvider(Configuration(("Stellaegis:Secrets:Scaleway:ProjectId", "project")));
         await using var app = builder.Build();
 

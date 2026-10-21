@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
+using Stellaegis.Primitives.Hosting;
 
 namespace Stellaegis.Secrets.Client;
 
@@ -10,13 +10,16 @@ namespace Stellaegis.Secrets.Client;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers <see cref="ISecretsProvider"/>/<see cref="IMutableSecretsProvider"/> backed by
-    /// an HTTP client targeting the Vault API.
+    /// Registers <see cref="ISecretsProvider"/>, <see cref="IMutableSecretsProvider"/> and <see cref="ISecretsPurge"/>
+    /// backed by an HTTP client calling a host that maps the secrets module, its options bound from
+    /// <paramref name="sectionName"/> and validated at host start, and the secrets module declared to the
+    /// application.
     /// </summary>
     /// <remarks>
     /// The client sends requests as they are: authenticating them is the caller's concern. Add a
     /// <see cref="System.Net.Http.DelegatingHandler"/> to the returned builder to attach a token, an
-    /// API key, or anything else the Vault API host requires.
+    /// API key, or anything else the host requires. The typed client is built by the HTTP client factory, per
+    /// resolution, as every typed client is.
     /// </remarks>
     /// <example>
     /// appsettings.json:
@@ -39,17 +42,10 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration,
         string sectionName = VaultClientOptions.SectionName)
     {
-        services.Configure<VaultClientOptions>(configuration.GetSection(sectionName));
-
-        var builder = services.AddHttpClient<IMutableSecretsProvider, HttpSecretsProvider>((sp, http) =>
-        {
-            var opts = sp.GetRequiredService<IOptions<VaultClientOptions>>().Value;
-            http.BaseAddress = new Uri(opts.BaseUrl.TrimEnd('/') + "/");
-            http.Timeout     = opts.Timeout;
-        });
-
+        services.AddStellaegisSecrets();
+        var builder = services.AddStellaegisHttpClient<IMutableSecretsProvider, HttpSecretsProvider, VaultClientOptions>(configuration, sectionName);
         services.AddTransient<ISecretsProvider>(sp => sp.GetRequiredService<IMutableSecretsProvider>());
-
+        services.AddTransient<ISecretsPurge>(sp => (ISecretsPurge)sp.GetRequiredService<IMutableSecretsProvider>());
         return builder;
     }
 }

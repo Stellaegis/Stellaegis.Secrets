@@ -1,14 +1,18 @@
+using Stellaegis.Primitives;
+
 namespace Stellaegis.Secrets.Tests;
 
-/// <summary>A writable in-memory store, for exercising the write endpoints.</summary>
-internal sealed class InMemoryMutableSecretsProvider : IMutableSecretsProvider
+/// <summary>A writable in-memory store, for exercising the routes and the client: the two ends of the wire.</summary>
+internal sealed class InMemoryMutableSecretsProvider : IMutableSecretsProvider, ISecretsPurge
 {
     private readonly Dictionary<SecretPath, string> _secrets = [];
+
+    public Actor? LastPurgedBy { get; private set; }
 
     public Task<string> GetSecretAsync(SecretPath path, CancellationToken cancellationToken = default) =>
         _secrets.TryGetValue(path, out var value)
             ? Task.FromResult(value)
-            : throw new KeyNotFoundException($"Secret not found: {path}");
+            : throw new SecretNotFoundException(path);
 
     public Task<IReadOnlyDictionary<SecretPath, string>> GetSecretsAsync(
         IEnumerable<SecretPath> paths, CancellationToken cancellationToken = default) =>
@@ -25,5 +29,15 @@ internal sealed class InMemoryMutableSecretsProvider : IMutableSecretsProvider
     {
         _secrets.Remove(path);
         return Task.CompletedTask;
+    }
+
+    public Task<int> PurgeCompartmentAsync(Compartment compartment, Actor actor, CancellationToken cancellationToken = default)
+    {
+        LastPurgedBy = actor;
+        var prefix = SecretPath.TextPrefixOf(compartment);
+        var purged = _secrets.Keys.Where(p => p.ToString().StartsWith(prefix, StringComparison.Ordinal)).ToList();
+        foreach (var path in purged)
+            _secrets.Remove(path);
+        return Task.FromResult(purged.Count);
     }
 }

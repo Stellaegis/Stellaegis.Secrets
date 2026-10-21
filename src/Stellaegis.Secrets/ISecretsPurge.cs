@@ -13,7 +13,9 @@ namespace Stellaegis.Secrets;
 /// those of the others.
 /// </para>
 /// <para>
-/// Only a provider running in the process of its caller offers it. A purge over HTTP is not available.
+/// The PostgreSQL and in-memory providers implement it in process. Over HTTP, the client implements it against the
+/// administration route a host maps with <c>MapSecretsAdminEndpoints</c>; the host then records the actor it
+/// authenticated, not the one the client names.
 /// </para>
 /// </remarks>
 public interface ISecretsPurge

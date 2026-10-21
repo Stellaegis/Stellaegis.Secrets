@@ -69,7 +69,7 @@ public sealed partial class ScalewaySecretsProvider : ISecretsProvider
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
             _logger.LogError("Secret not found in Scaleway for path '{Path}'", path);
-            throw new KeyNotFoundException($"Secret not found: {path}");
+            throw new SecretNotFoundException(path);
         }
 
         response.EnsureSuccessStatusCode();
@@ -100,7 +100,7 @@ public sealed partial class ScalewaySecretsProvider : ISecretsProvider
             {
                 result[path] = await GetSecretAsync(path, cancellationToken).ConfigureAwait(false);
             }
-            catch (KeyNotFoundException)
+            catch (SecretNotFoundException)
             {
                 _logger.LogWarning("Secret not found during batch retrieval: '{Path}'", path);
             }

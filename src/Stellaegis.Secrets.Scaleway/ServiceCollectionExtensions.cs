@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
+using Stellaegis.Primitives.Hosting;
 
 namespace Stellaegis.Secrets.Scaleway;
 
@@ -12,8 +11,8 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Registers <see cref="ScalewaySecretsProvider"/> as the <see cref="ISecretsProvider"/> implementation,
-    /// with its options bound from <paramref name="sectionName"/>. Uses Scaleway Secret Manager REST API. The
-    /// options are validated at host start; without a host, on first resolution.
+    /// with its options bound from <paramref name="sectionName"/> and validated at host start, and the secrets
+    /// module declared to the application. Uses Scaleway Secret Manager REST API.
     /// </summary>
     /// <remarks>
     /// To set an option from code, follow with
@@ -24,8 +23,8 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration,
         string sectionName = ScalewaySecretsOptions.SectionName)
     {
-        services.AddOptions<ScalewaySecretsOptions>().Bind(configuration.GetSection(sectionName)).ValidateOnStart();
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<ScalewaySecretsOptions>, ScalewaySecretsOptionsValidator>());
+        services.AddStellaegisOptions<ScalewaySecretsOptions>(configuration, sectionName);
+        services.AddStellaegisSecrets();
         services.AddHttpClient(ScalewaySecretsProvider.HttpClientName);
         services.AddSingleton<ISecretsProvider, ScalewaySecretsProvider>();
         return services;

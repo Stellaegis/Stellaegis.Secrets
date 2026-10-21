@@ -48,7 +48,7 @@ public sealed class InMemorySecretsProvider : ISecretsProvider, ISecretsPurge
         }
 
         _logger.LogError("Secret not found for path {Path}", path);
-        throw new KeyNotFoundException($"Secret not found: {path}");
+        throw new SecretNotFoundException(path);
     }
 
     /// <inheritdoc />
