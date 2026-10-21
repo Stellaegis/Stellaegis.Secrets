@@ -5,6 +5,67 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.0] — 2026-10-21
+
+Secrets becomes a module of the Stellaegis family on Primitives 5.0.0: it declares itself, its operations and its
+database; its routes carry an operation each and the purge reaches the wire; a missing secret is one error, with one
+code, on both sides of it. The five packages move together to 5.0.0, the major version of the family.
+
+### Migrating from 4.0.0
+
+In the order a host follows it:
+
+1. The packages reference `Stellaegis.Primitives` 5.0.0; `Stellaegis.Secrets` takes `Stellaegis.Primitives.Hosting`,
+   `.PostgreSQL` takes `.Data`, `.AspNetCore` takes `Stellaegis.Primitives.AspNetCore`.
+2. A host mapping the routes declares a frame with compartments and a request context:
+   `AddStellaegisFrame(ApplicationFrame.ManyCompartments().WithSharedSpace())` and
+   `AddStellaegisRequestContext(...)`. `MapSecretsEndpoints(authorizationPolicy)` becomes
+   `MapSecretsEndpoints().RequireAuthorization(policy)`, and `MapSecretsEndpointsAnonymous()` becomes
+   `MapSecretsEndpoints().AllowAnonymous()`: the startup check of Primitives refuses a route left without either.
+3. A caller catching `KeyNotFoundException` catches `SecretNotFoundException`, whose `Error.Code` is
+   `Secret.NotFound`; the client raises the same exception from the host's answer.
+4. A PostgreSQL vault is installed by `DatabaseLifecycle.InstallAsync([SecretsDatabase.Value], frame, openAsAdmin,
+   appRole)` rather than by running `docs/sql/stellaegis_secrets.sql`. A vault created by the 4.0.0 script keeps its
+   table: the installation records the script as applied only when it runs it, so reinstall on an empty schema, or
+   insert the row of `0001_initial.sql` into `vault._schema_migrations` by hand with its checksum. The application
+   verifies the vault at startup with `AddStellaegisDatabaseVerification()`.
+5. A client whose configuration is `Stellaegis:Secrets:Client` changes nothing: `BaseUrl` stays, `Timeout` is read
+   from the same section, ten seconds by default.
+
+### Changed
+
+- **Breaking.** `MapSecretsEndpoints()` takes no policy and maps the routes of the module, `BelongsTo<SecretsModule>()`,
+  with a request context, acting on spaces, with an `Operation` per route: `secrets.read` on `POST secrets/read` and
+  `POST secrets/get`, `secrets.write` on `POST secrets/set`, `secrets.delete` on `POST secrets/delete`. The host
+  declares the authorization on the returned group, or per operation, or opens the routes with `AllowAnonymous()`.
+  `MapSecretsEndpointsAnonymous` is removed.
+- **Breaking.** A secret that does not exist is a `SecretNotFoundException`, a `UserFacingException` with the code
+  `Secret.NotFound`, from every provider and from the client, which reconstructs it from the host's problem
+  details. `KeyNotFoundException` is no longer thrown. A request with no path, or a malformed one, answers `400`
+  with the code `SecretPath.Invalid`; a `set` without a value, `Secret.ValueRequired`.
+- **Breaking.** `Stellaegis.Secrets.PostgreSQL` declares the vault's database as `SecretsDatabase.Value`, a
+  `ModuleDatabase` of Primitives with the script `0001_initial.sql` embedded and `pgcrypto` required, and
+  `AddDatabaseSecretsProvider` registers it for the verification at startup. The script creates neither the schema
+  nor the extension: the installation does. `docs/sql/stellaegis_secrets.sql` leaves the repository.
+- `DatabaseSecretsOptions` holds its passphrases as the `KeySlots` of Primitives, and the options of the three
+  adapters implement `IValidatableOptions`, registered by `AddStellaegisOptions`: the configuration names
+  (`ConnectionString`, `ActiveKeySlot`, `Keys:1`, `Keys:2`) do not change; the validation message is prefixed with
+  the name of the options. The validator classes are removed.
+- `VaultClientOptions` is a `StellaegisClientOptions`, and `AddStellaegisHttpVaultClient` registers the client with
+  `AddStellaegisHttpClient`: `Timeout` is configurable, ten seconds by default. The client reads one secret through
+  `POST secrets/read` rather than through the batch route.
+- The contracts of the HTTP API leave `Stellaegis.Secrets`: each end of the wire holds its own, internal.
+- The PostgreSQL provider is one singleton, as the client's forwards are per resolution of the HTTP client factory.
+
+### Added
+
+- `SecretsModule`, the module `secrets`, declared `OptionallyCompartmented`, accepting the shared space, with its
+  four operations and the `owner_isolation` capability as a compatibility. `AddStellaegisSecrets()` declares it once,
+  and every registration of an adapter calls it.
+- `MapSecretsAdminEndpoints()`: the purge of a compartment over HTTP, `DELETE secrets/compartments/{compartment}`,
+  `secrets.purge`, which records the actor the host authenticated. The client implements `ISecretsPurge` against
+  it.
+
 ## [4.0.0] — 2026-10-19
 
 A secret path has a fixed shape, {space}.{module}.{name}…, so that every secret of a compartment lies
@@ -83,6 +144,7 @@ First release as a standalone library.
   (`Stellaegis.Secrets.AspNetCore`), and the matching client (`Stellaegis.Secrets.Client`), whose
   authentication the caller attaches.
 
+[5.0.0]: https://github.com/Stellaegis/Stellaegis.Secrets/releases/tag/v5.0.0
 [4.0.0]: https://github.com/Stellaegis/Stellaegis.Secrets/releases/tag/v4.0.0
 [1.0.2]: https://github.com/Stellaegis/Stellaegis.Secrets/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Stellaegis/Stellaegis.Secrets/releases/tag/v1.0.1

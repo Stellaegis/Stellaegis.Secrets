@@ -14,11 +14,15 @@ The library is split so that you only take the dependencies of the stores you us
 
 | Package | Contents | Depends on |
 | --- | --- | --- |
-| `Stellaegis.Secrets` | The interfaces, `SecretPath`, and two providers for development: in memory and from configuration | `Stellaegis.Primitives`, Microsoft.Extensions abstractions |
-| `Stellaegis.Secrets.PostgreSQL` | A self-hosted vault: secrets encrypted by pgcrypto in a PostgreSQL table | Npgsql, Dapper |
+| `Stellaegis.Secrets` | The interfaces, `SecretPath`, the module `SecretsModule`, and two providers for development: in memory and from configuration | `Stellaegis.Primitives`, `Stellaegis.Primitives.Hosting` |
+| `Stellaegis.Secrets.PostgreSQL` | A self-hosted vault: secrets encrypted by pgcrypto in a PostgreSQL table | `Stellaegis.Primitives.Data`, Npgsql, Dapper |
 | `Stellaegis.Secrets.Scaleway` | A read-only provider for Scaleway Secret Manager | `Microsoft.Extensions.Http` |
-| `Stellaegis.Secrets.AspNetCore` | Endpoints that expose a provider over HTTP | ASP.NET Core |
-| `Stellaegis.Secrets.Client` | A provider that calls those endpoints from another process | `Microsoft.Extensions.Http` |
+| `Stellaegis.Secrets.AspNetCore` | The routes of the module, which expose a provider over HTTP | `Stellaegis.Primitives.AspNetCore` |
+| `Stellaegis.Secrets.Client` | A provider that calls those routes from another process | `Microsoft.Extensions.Http` |
+
+The five packages share one version, and follow the major version of
+[Stellaegis.Primitives](https://github.com/Stellaegis/Stellaegis.Primitives): 5.0.0 runs on
+Primitives 5.0.0.
 
 ## Identifying a secret: `SecretPath`
 
@@ -46,7 +50,7 @@ var same     = SecretPath.Parse("acme.billing.smtp.password");
 
 `Compartment`, `Space` and `IStellaegisModule` come from
 [Stellaegis.Primitives](https://github.com/Stellaegis/Stellaegis.Primitives), which this package
-depends on. Its core has no dependency other than .NET.
+depends on.
 
 ### The space
 
@@ -125,6 +129,25 @@ digits and `-`. A format joining segments with `-` could represent neither a com
 contains `-` nor the segments `_shared` and `_assembly`. An adapter for such a vault would have to
 escape these characters, and the library provides no such adapter today.
 
+## The module
+
+Secrets is a module of the Stellaegis family, `SecretsModule`, named `secrets`. Every registration —
+`AddDatabaseSecretsProvider`, `AddScalewaySecretsProvider`, `AddStellaegisHttpVaultClient`, or
+`AddStellaegisSecrets()` on its own for the in-memory and configuration providers — declares it to the
+application once, and the application's startup reads the declaration against its frame:
+
+- the module serves an application **with or without compartments**: a vault of one application keeps
+  its secrets under `_assembly`, a vault of a platform keeps one prefix per compartment;
+- it **accepts the shared space**, whose secrets lie under `_shared`;
+- it performs four operations, `secrets.read`, `secrets.write`, `secrets.delete` and `secrets.purge`,
+  which its routes carry and an application grants;
+- it declares `owner_isolation` as a compatibility: no secret belongs to an actor, so an application
+  that isolates data by owner changes nothing for the vault.
+
+A secret that does not exist is a `SecretNotFoundException`, a `UserFacingException` of Primitives
+with the code `Secret.NotFound`, from every provider and from the client alike. The code lets a caller
+recognize it, in process or across the wire, without reading the message.
+
 ## Choosing a provider
 
 **In memory** (`InMemorySecretsProvider`). Secrets live in a dictionary that you fill with
@@ -172,19 +195,32 @@ settings live.
 
 A vault exposed over HTTP keeps them on its own host. Your applications then hold only the credential
 they call the vault with, which you can revoke and trace caller by caller, and the host can be
-reachable from your own services only. In return, the HTTP endpoints apply one authorization policy
-to every path today: a caller allowed to read reads every secret, whatever its space or module.
-Authorizing each call by the space and the module of the path it asks for is not available yet.
+reachable from your own services only. In return, the routes are authorized by operation today: a
+caller allowed to read reads every secret, whatever its space or module. Authorizing each call by the
+space and the module of the path it asks for is not available yet.
 
 ## The PostgreSQL vault
 
-Create the schema with [`docs/sql/stellaegis_secrets.sql`](https://github.com/Stellaegis/Stellaegis.Secrets/blob/main/docs/sql/stellaegis_secrets.sql), in the
-database of your choice. The script requires the pgcrypto extension and creates it if it is missing.
-[`docs/sql/reset-vault.sql`](https://github.com/Stellaegis/Stellaegis.Secrets/blob/main/docs/sql/reset-vault.sql) deletes every secret, for development only.
+The adapter declares the vault's database to Primitives, as `SecretsDatabase.Value`: the schema
+`vault`, its script embedded in the package, and the pgcrypto extension it requires. The database is
+**installed** by `DatabaseLifecycle.InstallAsync` of `Stellaegis.Primitives.Data`, from an installer or
+the provisioner of your application, under a role that owns the schema — it creates the schema and
+the extension, applies the script, records it, and grants the application's role what it needs,
+never a DDL right. The application connects under that ordinary role, and **verifies** the vault at
+every startup with the other databases it declares:
 
 ```csharp
+// The installer, under a role that may create the schema and the extension.
+await DatabaseLifecycle.InstallAsync([SecretsDatabase.Value], frame, OpenAsAdminAsync, "myapp_app");
+
+// The application, at startup, under its own role.
 builder.Services.AddDatabaseSecretsProvider(builder.Configuration);
+builder.Services.AddStellaegisDatabaseVerification();
 ```
+
+`AddDatabaseSecretsProvider` registers the declaration beside the provider, and the verification opens
+the vault with the provider's connection string. [`docs/sql/reset-vault.sql`](https://github.com/Stellaegis/Stellaegis.Secrets/blob/main/docs/sql/reset-vault.sql)
+deletes every secret, for development only.
 
 ```json
 {
@@ -211,9 +247,9 @@ time it resolves the provider.
 
 ### Key slots
 
-The provider holds two passphrases, in slots 1 and 2. New writes are encrypted with the active
-slot's passphrase, and each row records the slot it was encrypted with. Reads use whichever slot the
-row names.
+The provider holds two passphrases, in slots 1 and 2 — the `KeySlots` of Primitives, bound from
+`ActiveKeySlot`, `Keys:1` and `Keys:2`. New writes are encrypted with the active slot's passphrase,
+and each row records the slot it was encrypted with. Reads use whichever slot the row names.
 
 To change passphrase, put the new one in the inactive slot and make that slot active. Secrets
 written from then on use the new passphrase, and older secrets still read with the old one.
@@ -241,40 +277,57 @@ var purged = await purge.PurgeCompartmentAsync(Compartment.Parse("acme"), Actor.
 only the code in charge of administration takes `ISecretsPurge`: a module that keeps its own secrets
 cannot erase those of the others.
 
-The purge runs in the process that holds the provider. It has no HTTP endpoint.
+Over HTTP, the purge is the administration route of the module, mapped apart from the others by
+`MapSecretsAdminEndpoints`, and the client implements `ISecretsPurge` against it. The actor recorded
+is the one the host authenticated, read from its request context: the actor the client passes is
+not sent.
 
 ## Exposing a vault over HTTP
 
-The endpoints return secret values in clear, so their access is always declared explicitly. Name
-the authorization policy that protects them:
+The routes of the module return secret values in clear, so the host always declares who may call
+them: the startup check of `Stellaegis.Primitives.AspNetCore` refuses a route left without
+authorization. Require a policy on the group, or one per operation, or open the routes deliberately
+with `AllowAnonymous()` on a host that only a trusted network can reach.
+
+The routes act **on** spaces — the path of a secret is their object — so the host declares a frame
+with compartments and a request context, from which the routes read the actor:
 
 ```csharp
+builder.Services.AddStellaegisFrame(ApplicationFrame.ManyCompartments().WithSharedSpace());
+builder.Services.AddStellaegisRequestContext(c => c.CompartmentFromRoute("org"));
 builder.Services.AddDatabaseSecretsProvider(builder.Configuration);
 builder.Services.AddAuthentication(/* your scheme */);
-builder.Services.AddAuthorization(o => o.AddPolicy("vault", p => p.RequireAuthenticatedUser()));
+builder.Services.AddAuthorization(o =>
+{
+    o.AddPolicy("vault", p => p.RequireAuthenticatedUser());
+    o.AddPolicy("vault-admin", p => p.RequireRole("platform-admin"));
+});
 
 var app = builder.Build();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapGroup("/api/vault").MapSecretsEndpoints(authorizationPolicy: "vault");
+app.MapGroup("/api/vault").MapSecretsEndpoints().RequireAuthorization("vault");
+app.MapGroup("/api/vault").MapSecretsAdminEndpoints().RequireAuthorization("vault-admin");
 ```
 
-or, on a host that only a trusted network can reach, open them deliberately:
+| Route | Operation | Answer |
+| --- | --- | --- |
+| `POST secrets/read` | `secrets.read` | the value, as text; `404` with the code `Secret.NotFound` |
+| `POST secrets/get` | `secrets.read` | the values found, by path; a missing secret is absent |
+| `POST secrets/set` | `secrets.write` | `204`; `501` when the provider is read-only |
+| `POST secrets/delete` | `secrets.delete` | `204`; `501` when the provider is read-only |
+| `DELETE secrets/compartments/{compartment}` | `secrets.purge` | the number of secrets deleted; `501` without `ISecretsPurge` |
 
-```csharp
-app.MapGroup("/api/vault").MapSecretsEndpointsAnonymous();
-```
-
-Three endpoints are mapped under the group: `POST secrets/get`, `secrets/set` and `secrets/delete`.
-The write endpoints answer `501 Not Implemented` when the registered provider is read-only. The
-endpoints carry no route name, so you can map them more than once in one host.
+A request whose path is missing or malformed answers `400` with the code `SecretPath.Invalid`. The
+routes carry no name, so you can map them more than once in one host.
 
 Everything else about the host is yours to configure: the authentication scheme, CORS, rate
 limiting, forwarded headers, health checks. The library makes no assumption about how your services
 authenticate one another.
 
 On the calling side, register the client and attach the authentication your host expects as a
-`DelegatingHandler`:
+`DelegatingHandler`. The client implements the three interfaces, reconstructs `SecretNotFoundException`
+from the error the host answers, and checks the path before sending it, as the host does:
 
 ```csharp
 builder.Services.AddStellaegisHttpVaultClient(builder.Configuration)
@@ -285,11 +338,16 @@ builder.Services.AddStellaegisHttpVaultClient(builder.Configuration)
 {
   "Stellaegis": {
     "Secrets": {
-      "Client": { "BaseUrl": "https://vault.example.com/api/vault/" }
+      "Client": { "BaseUrl": "https://vault.example.com/api/vault/", "Timeout": "00:00:10" }
     }
   }
 }
 ```
+
+The client's options are the `StellaegisClientOptions` of Primitives: `BaseUrl`, required and
+validated at host start, and `Timeout`, ten seconds by default. The purge is called under the same
+base URL as the other routes, so a host that serves one client maps `MapSecretsAdminEndpoints` under
+the same prefix as `MapSecretsEndpoints`.
 
 ## Being notified of changes
 
@@ -305,8 +363,10 @@ dotnet test --solution Stellaegis.Secrets.slnx
 
 The PostgreSQL tests need a server. By default they connect to `127.0.0.1` as `postgres`, and create
 a database named `stellaegis_secrets_tests` if it does not exist. Set
-`STELLAEGIS_SECRETS_TEST_POSTGRES` to another connection string to change that. When no server
-answers, these tests are skipped and the others still run.
+`STELLAEGIS_SECRETS_TEST_POSTGRES` to another connection string to change that. The tests install the
+vault as an application does, with `DatabaseLifecycle.InstallAsync` under that connection, then run
+under an ordinary role they create, `stellaegis_secrets_app`. When no server answers, these tests are
+skipped and the others still run.
 
 ## License
 
