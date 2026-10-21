@@ -27,7 +27,8 @@ In the order a host follows it:
 4. A PostgreSQL vault is installed by `DatabaseLifecycle.InstallAsync([SecretsDatabase.Value], frame, openAsAdmin,
    appRole)` rather than by running `docs/sql/stellaegis_secrets.sql`. A vault created by the 4.0.0 script keeps its
    table: the installation records the script as applied only when it runs it, so reinstall on an empty schema, or
-   insert the row of `0001_initial.sql` into `vault._schema_migrations` by hand with its checksum. The application
+   record the script by hand — a row of `vault._schema_migrations` with version `1`, `0001_initial.sql`, and the
+   checksum `SqlScript.ChecksumOf(script.Sql)` gives: SHA-256 of the text, in lowercase hexadecimal. The application
    verifies the vault at startup with `AddStellaegisDatabaseVerification()`.
 5. A client whose configuration is `Stellaegis:Secrets:Client` changes nothing: `BaseUrl` stays, `Timeout` is read
    from the same section, ten seconds by default.
