@@ -21,8 +21,8 @@ The library is split so that you only take the dependencies of the stores you us
 | `Stellaegis.Secrets.Client` | A provider that calls those routes from another process | `Microsoft.Extensions.Http` |
 
 The five packages share one version, and follow the major version of
-[Stellaegis.Primitives](https://github.com/Stellaegis/Stellaegis.Primitives): 5.0.0 runs on
-Primitives 5.0.0.
+[Stellaegis.Primitives](https://github.com/Stellaegis/Stellaegis.Primitives): 5.0.1 runs on
+Primitives 5.6.0.
 
 ## Identifying a secret: `SecretPath`
 
